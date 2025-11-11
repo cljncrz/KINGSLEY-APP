@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart'; // For star ratings
 import 'package:capstone/controllers/custom_bottom_navbar.dart';
+import 'package:capstone/view/home/technician_detail_screen.dart';
 
 class TechnicianProfilesScreen extends StatelessWidget {
   const TechnicianProfilesScreen({super.key});
@@ -19,30 +20,64 @@ class TechnicianProfilesScreen extends StatelessWidget {
         name: 'Bisu Go',
         imageUrl: 'assets/images/logo.png', // Placeholder image
         rating: 4.8,
-        reviews: 120,
+        reviews: 122,
         servicesOffered: ['Full Detailing', 'Ceramic Coating'],
         description:
             'Experienced in high-end car detailing and paint correction.',
+        userReviews: [
+          Review(
+            id: 'rev1',
+            userName: 'Alice',
+            userAvatarUrl: 'assets/images/logo.png',
+            rating: 5,
+            comment: 'Absolutely stunning results! My car looks brand new.',
+          ),
+          Review(
+            id: 'rev2',
+            userName: 'Bob',
+            userAvatarUrl: 'assets/images/logo.png',
+            rating: 4.5,
+            comment: 'Great attention to detail.',
+          ),
+        ],
       ),
       Technician(
         id: 'tech2',
         name: 'Rey Ignacio',
         imageUrl: 'assets/images/logo.png',
         rating: 4.5,
-        reviews: 95,
+        reviews: 96,
         servicesOffered: ['Interior Cleaning', 'Engine Wash'],
         description:
             'Specializes in meticulous interior care and engine bay cleaning.',
+        userReviews: [
+          Review(
+            id: 'rev3',
+            userName: 'Charlie',
+            userAvatarUrl: 'assets/images/logo.png',
+            rating: 4,
+            comment: 'Good job on the interior, but took a bit long.',
+          ),
+        ],
       ),
       Technician(
         id: 'tech3',
         name: 'Robert Guerrero',
         imageUrl: 'assets/images/logo.png',
         rating: 4.9,
-        reviews: 150,
+        reviews: 151,
         servicesOffered: ['Hydrophobic Protection', 'Waxing'],
         description:
             'Master of hydrophobic treatments and long-lasting wax applications.',
+        userReviews: [
+          Review(
+            id: 'rev4',
+            userName: 'Diana',
+            userAvatarUrl: 'assets/images/logo.png',
+            rating: 5,
+            comment: 'The water beading is insane! Highly recommend.',
+          ),
+        ],
       ),
       Technician(
         id: 'tech4',
@@ -52,16 +87,26 @@ class TechnicianProfilesScreen extends StatelessWidget {
         reviews: 80,
         servicesOffered: ['Basic Wash', 'Tire Dressing'],
         description: 'Provides quick yet thorough basic washes and tire care.',
+        userReviews: [],
       ),
       Technician(
         id: 'tech5',
         name: 'Michael Domingo',
         imageUrl: 'assets/images/logo.png',
         rating: 4.6,
-        reviews: 110,
+        reviews: 111,
         servicesOffered: ['Headlight Restoration', 'Scratch Removal'],
         description:
             'Expert in restoring faded headlights and minor scratch repair.',
+        userReviews: [
+          Review(
+            id: 'rev5',
+            userName: 'Eve',
+            userAvatarUrl: 'assets/images/logo.png',
+            rating: 5,
+            comment: 'My headlights are crystal clear now!',
+          ),
+        ],
       ),
       Technician(
         id: 'tech6',
@@ -72,16 +117,26 @@ class TechnicianProfilesScreen extends StatelessWidget {
         servicesOffered: ['Motorcycle Detailing', 'Chrome Polishing'],
         description:
             'Dedicated to bringing out the shine in motorcycles and chrome parts.',
+        userReviews: [],
       ),
       Technician(
         id: 'tech7',
         name: 'Yuan Castillo',
         imageUrl: 'assets/images/logo.png',
         rating: 4.8,
-        reviews: 130,
+        reviews: 131,
         servicesOffered: ['Odor Removal', 'Upholstery Cleaning'],
         description:
             'Specializes in eliminating stubborn odors and deep cleaning upholstery.',
+        userReviews: [
+          Review(
+            id: 'rev6',
+            userName: 'Frank',
+            userAvatarUrl: 'assets/images/logo.png',
+            rating: 5,
+            comment: 'That weird smell is finally gone. Thank you!',
+          ),
+        ],
       ),
       Technician(
         id: 'tech8',
@@ -92,6 +147,7 @@ class TechnicianProfilesScreen extends StatelessWidget {
         servicesOffered: ['Window Tinting', 'Glass Treatment'],
         description:
             'Skilled in professional window tinting and advanced glass treatments.',
+        userReviews: [],
       ),
       Technician(
         id: 'tech9',
@@ -102,16 +158,33 @@ class TechnicianProfilesScreen extends StatelessWidget {
         servicesOffered: ['Fleet Washing', 'Commercial Vehicles'],
         description:
             'Manages large fleet washing and detailing for commercial clients.',
+        userReviews: [],
       ),
       Technician(
         id: 'tech10',
         name: 'James Mendoza',
         imageUrl: 'assets/images/logo.png',
         rating: 4.9,
-        reviews: 160,
+        reviews: 162,
         servicesOffered: ['Paint Protection Film', 'Vinyl Wraps'],
         description:
             'Certified installer of paint protection films and custom vinyl wraps.',
+        userReviews: [
+          Review(
+            id: 'rev7',
+            userName: 'Grace',
+            userAvatarUrl: 'assets/images/logo.png',
+            rating: 5,
+            comment: 'The PPF installation was flawless. Worth every penny.',
+          ),
+          Review(
+            id: 'rev8',
+            userName: 'Heidi',
+            userAvatarUrl: 'assets/images/logo.png',
+            rating: 4.8,
+            comment: 'Very professional and the wrap looks amazing.',
+          ),
+        ],
       ),
     ];
 
@@ -216,84 +289,95 @@ class _TechnicianCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 2,
-      shadowColor: isDark
-          ? Colors.black.withOpacity(0.5)
-          : Colors.grey.withOpacity(0.2),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundImage: AssetImage(technician.imageUrl),
-                  backgroundColor: isDark ? Colors.grey[700] : Colors.grey[200],
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        technician.name,
-                        style: AppTextStyle.withColor(
-                          AppTextStyle.h3,
-                          Theme.of(context).textTheme.bodyLarge!.color!,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          RatingBarIndicator(
-                            rating: technician.rating,
-                            itemBuilder: (context, index) => Icon(
-                              Icons.star,
-                              color: Theme.of(context).primaryColor,
-                            ),
-                            itemCount: 5,
-                            itemSize: 18.0,
-                            direction: Axis.horizontal,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            '${technician.rating} (${technician.reviews} reviews)',
-                            style: AppTextStyle.withColor(
-                              AppTextStyle.bodySmall,
-                              isDark ? Colors.grey[400]! : Colors.grey[600]!,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            RichText(
-              text: TextSpan(
-                style: AppTextStyle.withColor(
-                  AppTextStyle.bodySmall,
-                  Theme.of(context).textTheme.bodySmall!.color!,
-                ),
+    return InkWell(
+      onTap: () => Get.to(() => TechnicianDetailScreen(technician: technician)),
+      borderRadius: BorderRadius.circular(12),
+      child: Card(
+        margin: const EdgeInsets.only(bottom: 16),
+        elevation: 2,
+        shadowColor: isDark
+            ? Colors.black.withOpacity(0.5)
+            : Colors.grey.withOpacity(0.2),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
-                  const TextSpan(
-                    text: 'Services: ',
-                    style: TextStyle(fontWeight: FontWeight.bold),
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundImage: AssetImage(technician.imageUrl),
+                    backgroundColor: isDark
+                        ? Colors.grey[700]
+                        : Colors.grey[200],
                   ),
-                  TextSpan(text: technician.servicesOffered.join(', ')),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          technician.name,
+                          style: AppTextStyle.withColor(
+                            AppTextStyle.h3,
+                            Theme.of(context).textTheme.bodyLarge!.color!,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            RatingBarIndicator(
+                              rating: technician.rating,
+                              itemBuilder: (context, index) => Icon(
+                                Icons.star,
+                                color: Theme.of(context).primaryColor,
+                              ),
+                              itemCount: 5,
+                              itemSize: 18.0,
+                              direction: Axis.horizontal,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              '${technician.rating} (${technician.reviews} reviews)',
+                              style: AppTextStyle.withColor(
+                                AppTextStyle.bodySmall,
+                                isDark ? Colors.grey[400]! : Colors.grey[600]!,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(technician.description, style: AppTextStyle.bodySmall),
-          ],
+              const SizedBox(height: 16),
+              RichText(
+                text: TextSpan(
+                  style: AppTextStyle.withColor(
+                    AppTextStyle.bodySmall,
+                    Theme.of(context).textTheme.bodySmall!.color!,
+                  ),
+                  children: [
+                    const TextSpan(
+                      text: 'Services: ',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    TextSpan(text: technician.servicesOffered.join(', ')),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                technician.description,
+                style: AppTextStyle.bodySmall,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ),
     );

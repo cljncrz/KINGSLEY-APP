@@ -2,12 +2,56 @@ import 'package:capstone/utils/app_textstyles.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:capstone/view/home/chat_detail_screen.dart';
 import 'package:capstone/screens/signup/signup_screen.dart';
 import 'package:capstone/controllers/custom_bottom_navbar.dart';
 
+class Message {
+  final String sender;
+  final String text;
+  final String time;
+  final bool isUnread;
+
+  Message({
+    required this.sender,
+    required this.text,
+    required this.time,
+    this.isUnread = false,
+  });
+}
+
 // ignore: must_be_immutable
-class AiChatbotScreen extends StatelessWidget {
+class AiChatbotScreen extends StatefulWidget {
   const AiChatbotScreen({super.key});
+
+  @override
+  State<AiChatbotScreen> createState() => _AiChatbotScreenState();
+}
+
+class _AiChatbotScreenState extends State<AiChatbotScreen> {
+  final List<Message> sampleMessages = [
+    Message(
+      sender: 'Kingsley Carwash',
+      text: 'Your car is ready for pickup!',
+      time: '10:30 AM',
+      isUnread: true,
+    ),
+    Message(
+      sender: 'Special Offer',
+      text: 'Get 20% off on your next wash. Use code: KINGSLEY20',
+      time: 'Yesterday',
+    ),
+    Message(
+      sender: 'Booking Confirmation',
+      text: 'Your booking for tomorrow at 2:00 PM is confirmed.',
+      time: 'Yesterday',
+    ),
+    Message(
+      sender: 'Welcome!',
+      text: 'Thanks for signing up with Kingsley Carwash!',
+      time: '2 days ago',
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -15,6 +59,7 @@ class AiChatbotScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         leading: IconButton(
           onPressed: () => Get.back(),
           icon: Icon(
@@ -23,7 +68,7 @@ class AiChatbotScreen extends StatelessWidget {
           ),
         ),
         title: Text(
-          'ChatBot',
+          'Chat Inbox',
           style: AppTextStyle.withColor(
             AppTextStyle.h3,
             isDark ? Colors.white : Colors.black,
@@ -33,8 +78,10 @@ class AiChatbotScreen extends StatelessWidget {
       body: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            return _buildChatbotView(context);
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasData) {
+            return _buildInboxView(context, sampleMessages);
           } else {
             return _buildGuestView(context);
           }
@@ -44,15 +91,58 @@ class AiChatbotScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildChatbotView(BuildContext context) {
-    return Center(
-      child: Text(
-        'The chatbot is under development.',
-        style: AppTextStyle.withColor(
-          AppTextStyle.bodyMedium,
-          Theme.of(context).textTheme.bodyLarge!.color!,
-        ),
-      ),
+  Widget _buildInboxView(BuildContext context, List<Message> messages) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return ListView.builder(
+      itemCount: messages.length,
+      itemBuilder: (context, index) {
+        final message = messages[index];
+        return ListTile(
+          tileColor: message.isUnread
+              ? Theme.of(context).primaryColor.withOpacity(0.1)
+              : null,
+          leading: CircleAvatar(
+            backgroundColor: Theme.of(context).primaryColor,
+            child: Text(
+              message.sender[0],
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+          title: Text(
+            message.sender,
+            style:
+                AppTextStyle.withColor(
+                  AppTextStyle.h3,
+                  Theme.of(context).textTheme.bodyLarge!.color!,
+                ).copyWith(
+                  fontWeight: message.isUnread
+                      ? FontWeight.bold
+                      : FontWeight.normal,
+                ),
+          ),
+          subtitle: Text(
+            message.text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTextStyle.withColor(
+              AppTextStyle.bodySmall,
+              isDark ? Colors.grey[400]! : Colors.grey[600]!,
+            ),
+          ),
+          trailing: Text(message.time, style: AppTextStyle.bodySmall),
+          onTap: () {
+            setState(() {
+              final index = messages.indexOf(message);
+              messages[index] = Message(
+                sender: message.sender,
+                text: message.text,
+                time: message.time,
+              );
+            });
+            Get.to(() => ChatDetailScreen(message: message));
+          },
+        );
+      },
     );
   }
 
@@ -65,7 +155,7 @@ class AiChatbotScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(
-              Icons.chat_bubble_outline,
+              Icons.mark_email_unread_outlined,
               size: 80,
               color: isDark ? Colors.grey[600] : Colors.grey[400],
             ),
@@ -80,7 +170,7 @@ class AiChatbotScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Sign up or log in to receive notifications.',
+              'Sign up or log in to receive messages and notifications.',
               style: AppTextStyle.withColor(
                 AppTextStyle.bodyMedium,
                 isDark ? Colors.grey[500]! : Colors.grey[600]!,
