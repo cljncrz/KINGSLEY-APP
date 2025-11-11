@@ -1,0 +1,166 @@
+name: capstone
+description: "A new Flutter project."
+# The following line prevents the package from being accidentally published to
+# pub.dev using `flutter pub publish`. This is preferred for private packages.
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+
+# The following defines the version and build number for your application.
+# A version number is three numbers separated by dots, like 1.2.43
+# followed by an optional build number separated by a +.
+# Both the version and the builder number may be overridden in flutter
+# build by specifying --build-name and --build-number, respectively.
+# In Android, build-name is used as versionName while build-number used as versionCode.
+# Read more about Android versioning at https://developer.android.com/studio/publish/versioning
+# In iOS, build-name is used as CFBundleShortVersionString while build-number is used as CFBundleVersion.
+# Read more about iOS versioning at
+# https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
+# In Windows, build-name is used as the major, minor, and patch parts
+# of the product and file versions while build-number is used as the build suffix.
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.0
+
+# Dependencies specify other packages that your package needs in order to work.
+# To automatically upgrade your package dependencies to the latest versions
+# consider running `flutter pub upgrade --major-versions`. Alternatively,
+# dependencies can be manually updated by changing the version numbers below to
+# the latest version available on pub.dev. To see which dependencies have newer
+# versions available, run `flutter pub outdated`.
+dependencies:
+  flutter:
+    sdk: flutter
+
+  permission_handler: ^12.0.1
+  cupertino_icons: ^1.0.8
+  google_fonts: ^6.2.1
+  get: ^4.6.6
+  get_storage: ^2.1.1
+  share_plus: ^12.0.1
+  introduction_screen: ^4.0.0
+  flutter_native_splash: ^2.4.0
+  flutter_rating_bar: ^4.0.1
+
+  # Firebase
+  firebase_core: ^4.2.0
+  firebase_auth: ^6.1.1
+  cloud_firestore: ^6.0.3
+  image_picker: ^1.2.0
+  firebase_storage: ^13.0.3
+  google_sign_in: ^7.2.0
+  firebase_app_check: ^0.4.1+1
+  http: ^1.5.0
+  flutter_dotenv: ^6.0.0
+  firebase_messaging: ^16.0.3
+  cloud_functions: ^6.0.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  intl: ^0.20.2
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  android: true # Use true to generate new icons
+  ios: true
+  image_path: "assets/images/logo.png" # Fallback for other platforms
+  adaptive_icon_background: "#FFFFFF" # A solid background color for the adaptive icon.
+  adaptive_icon_foreground: "assets/images/logo_foreground.png" # Your logo with a transparent background
+  windows:
+    generate: true
+    image_path: "assets/images/logo.png"
+    icon_size: 48 # min:48, max:256, default: 48
+  web:
+    generate: true
+    image_path: "assets/images/logo.png"
+    
+
+# For information on the generic Dart part of this file, see the
+# following page: https://dart.dev/tools/pub/pubspec
+
+# The following section is specific to Flutter packages.
+flutter:
+
+  uses-material-design: true
+
+  assets:
+  - assets/.env
+
+  # OnBoarding and Splash Images
+  - assets/images/calendar.png
+  - assets/images/check.png
+  - assets/images/location.png
+  - assets/images/location_on.png
+  - assets/images/notifications.png
+  - assets/images/logo.png
+  - assets/images/resched.png
+  - assets/images/google_logo.png
+  - assets/images/logo_home_screen.png
+
+  # Promos
+  - assets/promos/promo 1.png
+  - assets/promos/promo 2.png
+  - assets/promos/promo 3.png
+  
+  # Brands
+  - assets/images/meguiars.png
+  - assets/images/eagle.png
+  - assets/images/armor.png
+  - assets/images/turtle wax.png
+
+  # Wash Services
+  - assets/wash_services/motorcycle_wash_armor_all.png
+  - assets/wash_services/carwash_wash_armor_all.png
+  - assets/wash_services/hydrophobic_wax.png
+  - assets/wash_services/labor_wax.png     
+  - assets/wash_services/meguiars_carnauba_wash.png
+  - assets/wash_services/double_wax.png
+  - assets/wash_services/ceiling_cleaning.png
+  - assets/wash_services/asphalt_removal.png
+  - assets/wash_services/seat_cover_install.png
+  - assets/wash_services/seat_cover_remover.png
+  - assets/wash_services/underwash.png
+  - assets/wash_services/microtex_bac_to_zero.png
+
+  # Detailing Services
+  - assets/detailing_services/hydrophobic_protection.png
+  - assets/detailing_services/ceramic_coating.png
+  - assets/detailing_services/glass_detailing&acid_rain.png
+  - assets/detailing_services/exterior_detailing.png
+  - assets/detailing_services/per_panel_detailing.png
+  - assets/detailing_services/interior_detailing.png
+  - assets/detailing_services/deep_cleaning.png
+  - assets/detailing_services/interior_detail+deep_cleaning.png
+  - assets/detailing_services/full_package_detailing.png
+  
+  # Payments
+  - assets/images/cash_on_hand.png
+  - assets/images/gcash.png
+  - assets/images/paymaya.png
+  
+  # An image asset can refer to one or more resolution-specific "variants", see
+  # https://flutter.dev/to/resolution-aware-images
+
+  # For details regarding adding assets from package dependencies, see
+  # https://flutter.dev/to/asset-from-package
+
+  # To add custom fonts to your application, add a fonts section here,
+  # in this "flutter" section. Each entry in this list should have a
+  # "family" key with the font family name, and a "fonts" key with a
+  # list giving the asset and other descriptors for the font. For
+  # example:
+  # fonts:
+  #   - family: Schyler
+  #     fonts:
+  #       - asset: fonts/Schyler-Regular.ttf
+  #       - asset: fonts/Schyler-Italic.ttf
+  #         style: italic
+  #   - family: Trajan Pro
+  #     fonts:
+  #       - asset: fonts/TrajanPro.ttf
+  #       - asset: fonts/TrajanPro_Bold.ttf
+  #         weight: 700
+  #
+  # For details regarding fonts from package dependencies,
+  # see https://flutter.dev/to/font-from-package

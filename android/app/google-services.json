@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "508373593061",
+    "project_id": "kingsleycarwashapp",
+    "storage_bucket": "kingsleycarwashapp.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:508373593061:android:399ec215763b1511dc1d0c",
+        "android_client_info": {
+          "package_name": "com.example.capstone"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "508373593061-qrv90elgr74aidbkddv90lgaujv84i68.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.capstone",
+            "certificate_hash": "d4e0894509b2d07e53169d48fc252f03a7add2b9"
+          }
+        },
+        {
+          "client_id": "508373593061-botbk4jkrohufi7r9nhd2k1fpa37vsu7.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDDe8PSypZnoD5UpcmUmBzi0p51mAGi2Ws"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "508373593061-botbk4jkrohufi7r9nhd2k1fpa37vsu7.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "508373593061-smehumrmuboqvb14dmqifudmuno7jvam.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.capstone"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
