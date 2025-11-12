@@ -4,8 +4,10 @@ import 'package:capstone/utils/custom_textfield.dart';
 import 'package:capstone/screens/forgot_password_screen.dart';
 import 'package:capstone/view/home/main_screen.dart';
 import 'package:capstone/screens/signup/signup_screen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 
@@ -275,6 +277,15 @@ class _SigninScreenState extends State<SigninScreen> {
         email: _loginController.text.trim(), // Added .trim() for password
         password: _passwordController.text.trim(),
       );
+
+      // After successful login, get the FCM token and save it to Firestore.
+      String? fcmToken = await FirebaseMessaging.instance.getToken();
+      if (fcmToken != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(FirebaseAuth.instance.currentUser!.uid)
+            .update({'fcmToken': fcmToken});
+      }
 
       // If login is successful, save "Remember Me" and navigate
       _saveRememberMe();

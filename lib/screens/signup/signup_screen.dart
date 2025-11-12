@@ -7,6 +7,7 @@ import 'package:capstone/screens/signin_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/gestures.dart';
 import 'package:get/get.dart';
 
@@ -79,6 +80,9 @@ class _SignupScreenState extends State<SignupScreen> {
               password: _passwordController.text,
             );
 
+        // Get FCM token
+        String? fcmToken = await FirebaseMessaging.instance.getToken();
+
         // Store user data in Firestore
         await FirebaseFirestore.instance
             .collection('users')
@@ -88,6 +92,7 @@ class _SignupScreenState extends State<SignupScreen> {
               'email': _emailController.text.trim(),
               'phoneNumber': _phoneController.text.trim(),
               'createdAt': FieldValue.serverTimestamp(),
+              'fcmToken': fcmToken,
               'role': 'user',
             });
 

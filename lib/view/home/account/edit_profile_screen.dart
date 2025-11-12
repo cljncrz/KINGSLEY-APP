@@ -149,8 +149,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         await user.verifyBeforeUpdateEmail(_emailController.text.trim());
       }
 
-      // 5. Fetch the latest user data in the background without blocking.
-      Get.find<UserController>().fetchFirestoreUserData(user.uid);
+      // 5. Fetch the latest user data and wait for it so the Account screen
+      // can read the updated values when we pop back.
+      await Get.find<UserController>().fetchFirestoreUserData(user.uid);
+
+      // Navigate back first so that the Snackbar isn't intercepted by the
+      // current route (Get.back can otherwise close overlays). Showing the
+      // success message after popping ensures it's visible on the Account
+      // screen.
+      Get.back();
 
       Get.rawSnackbar(
         titleText: Text(
@@ -197,8 +204,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           _isLoading = false;
         });
       }
-      // Navigate back after the operation is complete.
-      Get.back();
     }
   }
 

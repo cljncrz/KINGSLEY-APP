@@ -77,9 +77,9 @@ class TechnicianDetailScreen extends StatelessWidget {
                 ),
               )
             else
-              ...technician.userReviews
-                  .map((review) => _buildReviewCard(context, review, isDark))
-                  .toList(),
+              ...technician.userReviews.map(
+                (review) => _buildReviewCard(context, review, isDark),
+              ),
           ],
         ),
       ),

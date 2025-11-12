@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Alias drawable so code that expects @drawable/app_icon will find the existing mipmap launcher icon -->
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@mipmap/launcher_icon"
+    android:gravity="center" />
