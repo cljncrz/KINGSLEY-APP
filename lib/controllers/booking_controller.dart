@@ -13,13 +13,21 @@ class BookingController extends GetxController {
   final RxList<Booking> _bookings = <Booking>[].obs;
 
   // Computed lists that will automatically update when _bookings changes.
-  List<Booking> get upcomingBookings => _bookings
-      .where((b) => b.status == 'Pending' || b.status == 'Upcoming')
-      .toList();
-  List<Booking> get activeBookings =>
-      _bookings.where((b) => b.status == 'Active').toList();
-  List<Booking> get completedBookings =>
-      _bookings.where((b) => b.status == 'Completed').toList();
+  // Flexible matching for statuses to tolerate different admin strings.
+  List<Booking> get upcomingBookings => _bookings.where((b) {
+    final s = b.status.toLowerCase();
+    return s.contains('pend') || s.contains('up') || s.contains('approv');
+  }).toList();
+
+  List<Booking> get activeBookings => _bookings.where((b) {
+    final s = b.status.toLowerCase();
+    return s.contains('active');
+  }).toList();
+
+  List<Booking> get completedBookings => _bookings.where((b) {
+    final s = b.status.toLowerCase();
+    return s.contains('complete') || s.contains('completed');
+  }).toList();
 
   StreamSubscription<User?>? _authSubscription;
   StreamSubscription<List<Booking>>? _bookingSubscription;

@@ -139,4 +139,32 @@ class NotificationController extends GetxController {
       Get.snackbar('Error', 'Could not delete the notification.');
     }
   }
+
+  /// Creates a notification document for the current user.
+  Future<void> createNotification({
+    required String title,
+    required String body,
+    String? type,
+    String? bookingId,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    try {
+      await _db
+          .collection('users')
+          .doc(user.uid)
+          .collection('notifications')
+          .add({
+            'title': title,
+            'body': body,
+            'createdAt': FieldValue.serverTimestamp(),
+            'isRead': false,
+            if (type != null) 'type': type,
+            if (bookingId != null) 'bookingId': bookingId,
+          });
+    } catch (e) {
+      print('Error creating notification: $e');
+    }
+  }
 }

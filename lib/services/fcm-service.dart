@@ -1,4 +1,3 @@
-import 'package:capstone/controllers/local_notification_service.dart';
 import 'package:capstone/services/local_notification_service.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -54,7 +53,55 @@ class MyFCMService {
     }
   }
 
+  /// Deletes the FCM token from the device and removes it from the
+  /// user's Firestore document so this device no longer receives messages.
+  Future<void> disableNotifications() async {
+    try {
+      String? token = await _firebaseMessaging.getToken();
+      if (token != null) {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user != null) {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(user.uid)
+              .set({'fcmToken': FieldValue.delete()}, SetOptions(merge: true));
+        }
+      }
+
+      // Delete the token locally so FCM stops sending to this instance.
+      await _firebaseMessaging.deleteToken();
+      print('FCM token deleted and removed from Firestore.');
+    } catch (e) {
+      print('Error disabling notifications: $e');
+    }
+  }
+
+  /// Convenience: toggle notifications on/off. Enables by calling
+  /// `initNotifications` (which obtains & saves token) or disables by
+  /// removing the token.
+  Future<void> setNotificationsEnabled(bool enabled) async {
+    if (enabled) {
+      await initNotifications();
+    } else {
+      await disableNotifications();
+    }
+  }
+
   Future<void> initNotifications() async {
+    // Request notification permissions (important for iOS/macOS)
+    NotificationSettings settings = await _firebaseMessaging.requestPermission(
+      alert: true,
+      announcement: false,
+      badge: true,
+      carPlay: false,
+      criticalAlert: false,
+      provisional: false,
+      sound: true,
+    );
+    print(
+      'User granted notification permission: ${settings.authorizationStatus}',
+    );
+
     // 1. Get the FCM Token
     String? token = await _firebaseMessaging.getToken();
     print("FCM Token inside initNotifications: $token");

@@ -3,9 +3,37 @@ import 'package:capstone/utils/app_textstyles.dart';
 import 'package:capstone/controllers/custom_bottom_navbar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:capstone/services/fcm-service.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
-class SettingScreen extends StatelessWidget {
+class SettingScreen extends StatefulWidget {
   const SettingScreen({super.key});
+
+  @override
+  State<SettingScreen> createState() => _SettingScreenState();
+}
+
+class _SettingScreenState extends State<SettingScreen> {
+  final MyFCMService _fcmService = MyFCMService();
+  bool pushEnabled = true; // default; will be updated in initState
+  bool emailEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Determine if device currently has an FCM token saved locally
+    FirebaseMessaging.instance
+        .getToken()
+        .then((token) {
+          setState(() {
+            pushEnabled = token != null;
+          });
+        })
+        .catchError((_) {
+          // keep default if error
+        });
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -38,13 +66,19 @@ class SettingScreen extends StatelessWidget {
                 context,
                 'Push Notifications',
                 'Receive push notifications about booking',
-                true,
+                pushEnabled,
+                (value) async {
+                  setState(() => pushEnabled = value);
+                  // Toggle FCM handling: enable -> request token & save, disable -> delete token
+                  await _fcmService.setNotificationsEnabled(value);
+                },
               ),
               _buildSwitchTile(
                 context,
                 'Email Notifications',
                 'Receive email updates about your booking',
-                false,
+                emailEnabled,
+                (value) => setState(() => emailEnabled = value),
               ),
             ]),
           ],
@@ -125,6 +159,7 @@ class SettingScreen extends StatelessWidget {
     String title,
     String subtitle,
     bool initialValue,
+    ValueChanged<bool> onChanged,
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
@@ -160,7 +195,7 @@ class SettingScreen extends StatelessWidget {
         ),
         trailing: Switch.adaptive(
           value: initialValue,
-          onChanged: (value) {},
+          onChanged: onChanged,
           activeColor: Theme.of(context).primaryColor,
         ),
       ),
