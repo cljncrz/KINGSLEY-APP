@@ -33,17 +33,20 @@ class TrackBookingScreen extends StatefulWidget {
   State<TrackBookingScreen> createState() => _TrackBookingScreenState();
 }
 
-class _TrackBookingScreenState extends State<TrackBookingScreen> {
+class _TrackBookingScreenState extends State<TrackBookingScreen>
+    with SingleTickerProviderStateMixin {
   late final BookingController bookingController;
   late final NavigationController navigationController;
   StreamSubscription<List<Booking>>? _bookingListener;
   final Map<String, String> _previousStatuses = {};
+  late TabController tabController;
 
   @override
   void initState() {
     super.initState();
     bookingController = Get.find<BookingController>();
     navigationController = Get.find<NavigationController>();
+    tabController = TabController(length: 3, vsync: this);
 
     // If user is logged in, listen to the bookings stream to detect status changes
     final user = FirebaseAuth.instance.currentUser;
@@ -75,6 +78,7 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
   @override
   void dispose() {
     _bookingListener?.cancel();
+    tabController.dispose();
     super.dispose();
   }
 
@@ -169,88 +173,92 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
     // Ensure controller has started fetching/binding bookings (controller also binds in onInit)
     bookingController.fetchUserBookings(user.uid);
 
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        appBar: AppBar(
-          leading: IconButton(
-            onPressed: () => navigationController.changeIndex(0),
-            icon: Icon(
-              Icons.arrow_back_ios,
-              color: isDark ? Colors.white : Colors.black,
-            ),
+    return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        leading: IconButton(
+          onPressed: () => navigationController.changeIndex(0),
+          icon: Icon(
+            Icons.arrow_back_ios,
+            color: isDark ? Colors.white : Colors.black,
           ),
-          title: Text(
-            'Track Bookings',
-            style: AppTextStyle.withColor(
-              AppTextStyle.h3,
-              isDark ? Colors.white : Colors.black,
-            ),
+        ),
+        title: Text(
+          'Track Bookings',
+          style: AppTextStyle.withColor(
+            AppTextStyle.h3,
+            isDark ? Colors.white : Colors.black,
           ),
-          bottom: TabBar(
-            indicatorColor: Theme.of(context).primaryColor,
-            labelStyle: AppTextStyle.withColor(
-              AppTextStyle.bodySmall.copyWith(fontWeight: FontWeight.bold),
-              isDark ? Colors.white : Theme.of(context).primaryColor,
-            ),
-            unselectedLabelStyle: AppTextStyle.withColor(
-              AppTextStyle.bodySmall,
-              isDark ? Colors.white70 : Colors.black,
-            ),
-            labelColor: isDark ? Colors.white : Theme.of(context).primaryColor,
-            unselectedLabelColor: isDark ? Colors.white70 : Colors.black,
-            tabs: const [
-              Tab(text: 'Upcoming'),
-              Tab(text: 'Active'),
-              Tab(text: 'Completed'),
+        ),
+        bottom: TabBar(
+          controller: tabController,
+          indicatorColor: Theme.of(context).primaryColor,
+          labelStyle: AppTextStyle.withColor(
+            AppTextStyle.bodySmall.copyWith(fontWeight: FontWeight.bold),
+            isDark ? Colors.white : Theme.of(context).primaryColor,
+          ),
+          unselectedLabelStyle: AppTextStyle.withColor(
+            AppTextStyle.bodySmall,
+            isDark ? Colors.white70 : Colors.black,
+          ),
+          labelColor: isDark ? Colors.white : Theme.of(context).primaryColor,
+          unselectedLabelColor: isDark ? Colors.white70 : Colors.black,
+          tabs: const [
+            Tab(text: 'Upcoming'),
+            Tab(text: 'Active'),
+            Tab(text: 'Completed'),
+          ],
+        ),
+      ),
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        // Listen to user's bookings collection so UI updates in real-time
+        stream: FirebaseFirestore.instance
+            .collection('bookings')
+            .where('userId', isEqualTo: user.uid)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return Center(child: Text('Error loading bookings'));
+          }
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          // Map documents to Booking model
+          final docs = snapshot.data!.docs;
+          final allBookings = docs.map((d) => Booking.fromSnapshot(d)).toList();
+
+          // Partition bookings into tabs
+          final upcoming = allBookings
+              .where(
+                (b) =>
+                    !_isActiveStatus(b.status) && !_isCompletedStatus(b.status),
+              )
+              .toList();
+          final active = allBookings
+              .where(
+                (b) =>
+                    _isActiveStatus(b.status) ||
+                    (_isCompletedStatus(b.status) &&
+                        !(b.feedbackGiven ?? false)),
+              )
+              .toList();
+          final completed = allBookings
+              .where(
+                (b) =>
+                    _isCompletedStatus(b.status) && (b.feedbackGiven ?? false),
+              )
+              .toList();
+
+          return TabBarView(
+            controller: tabController,
+            children: [
+              _buildBookingList(context, upcoming, isDark),
+              _buildBookingList(context, active, isDark),
+              _buildBookingList(context, completed, isDark),
             ],
-          ),
-        ),
-        body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          // Listen to user's bookings collection so UI updates in real-time
-          stream: FirebaseFirestore.instance
-              .collection('bookings')
-              .where('userId', isEqualTo: user.uid)
-              .snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return Center(child: Text('Error loading bookings'));
-            }
-            if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            // Map documents to Booking model
-            final docs = snapshot.data!.docs;
-            final allBookings = docs
-                .map((d) => Booking.fromSnapshot(d))
-                .toList();
-
-            // Partition bookings into tabs
-            final upcoming = allBookings
-                .where(
-                  (b) =>
-                      !_isActiveStatus(b.status) &&
-                      !_isCompletedStatus(b.status),
-                )
-                .toList();
-            final active = allBookings
-                .where((b) => _isActiveStatus(b.status))
-                .toList();
-            final completed = allBookings
-                .where((b) => _isCompletedStatus(b.status))
-                .toList();
-
-            return TabBarView(
-              children: [
-                _buildBookingList(context, upcoming, isDark),
-                _buildBookingList(context, active, isDark),
-                _buildBookingList(context, completed, isDark),
-              ],
-            );
-          },
-        ),
+          );
+        },
       ),
     );
   }
@@ -292,17 +300,19 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  booking.serviceNames.join(', '),
-                  style: AppTextStyle.withColor(
-                    AppTextStyle.h3,
-                    Theme.of(context).textTheme.bodyLarge!.color!,
-                  ),
-                ),
-              ],
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: booking.serviceNames
+                  .map(
+                    (serviceName) => Text(
+                      serviceName,
+                      style: AppTextStyle.withColor(
+                        AppTextStyle.h3,
+                        Theme.of(context).textTheme.bodyLarge!.color!,
+                      ),
+                    ),
+                  )
+                  .toList(),
             ),
             const SizedBox(height: 8),
 
@@ -492,9 +502,11 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
                   color: Theme.of(context).textTheme.bodySmall!.color!,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  booking.bookingDate,
-                  style: Theme.of(context).textTheme.bodySmall,
+                Expanded(
+                  child: Text(
+                    booking.bookingDate,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                 ),
                 const SizedBox(width: 16),
                 Icon(
@@ -503,9 +515,11 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
                   color: Theme.of(context).textTheme.bodySmall!.color!,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  booking.bookingTime,
-                  style: Theme.of(context).textTheme.bodySmall,
+                Expanded(
+                  child: Text(
+                    booking.bookingTime,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                 ),
               ],
             ),
@@ -518,7 +532,107 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
               ),
             ),
             const Divider(height: 24),
-            if (booking.status == 'Pending' ||
+            if (_isCompletedStatus(booking.status) &&
+                (booking.feedbackGiven ?? false))
+              FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                future: FirebaseFirestore.instance
+                    .collection('feedbacks')
+                    .doc(booking.id)
+                    .get(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError ||
+                      !snapshot.hasData ||
+                      !snapshot.data!.exists) {
+                    return Text(
+                      'Feedback not available',
+                      style: AppTextStyle.withColor(
+                        AppTextStyle.bodySmall,
+                        isDark ? Colors.grey[400]! : Colors.grey[600]!,
+                      ),
+                    );
+                  }
+                  final feedbackDoc = snapshot.data!.data()!;
+                  final serviceRating =
+                      feedbackDoc['serviceRating'] as int? ?? 0;
+                  final technicianRating =
+                      feedbackDoc['technicianRating'] as int? ?? 0;
+                  final comment = feedbackDoc['comment'] as String? ?? '';
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 16),
+                      Text(
+                        'Your Feedback',
+                        style: AppTextStyle.withColor(
+                          AppTextStyle.bodyMedium.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                          Theme.of(context).textTheme.bodyLarge!.color!,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Text(
+                            'Service: ',
+                            style: AppTextStyle.withColor(
+                              AppTextStyle.bodySmall,
+                              isDark ? Colors.grey[400]! : Colors.grey[600]!,
+                            ),
+                          ),
+                          ...List.generate(
+                            5,
+                            (i) => Icon(
+                              i < serviceRating
+                                  ? Icons.star
+                                  : Icons.star_border,
+                              color: Colors.amber,
+                              size: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Text(
+                            'Technician: ',
+                            style: AppTextStyle.withColor(
+                              AppTextStyle.bodySmall,
+                              isDark ? Colors.grey[400]! : Colors.grey[600]!,
+                            ),
+                          ),
+                          ...List.generate(
+                            5,
+                            (i) => Icon(
+                              i < technicianRating
+                                  ? Icons.star
+                                  : Icons.star_border,
+                              color: Colors.amber,
+                              size: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (comment.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Comment: $comment',
+                          style: AppTextStyle.withColor(
+                            AppTextStyle.bodySmall,
+                            isDark ? Colors.grey[400]! : Colors.grey[600]!,
+                          ),
+                        ),
+                      ],
+                    ],
+                  );
+                },
+              )
+            else if (booking.status == 'Pending' ||
                 _isApprovedStatus(booking.status))
               Column(
                 children: [
@@ -540,18 +654,10 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
                   Center(
                     child: (_isActiveStatus(booking.status))
                         ? (booking.id == null
-                              ? Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    _buildProgressSummary(
-                                      booking.progress,
-                                      isDark,
-                                    ),
-                                    const SizedBox(height: 8),
-                                    ProgressTracker(
-                                      currentProgress: booking.progress,
-                                    ),
-                                  ],
+                              ? ProgressTracker(
+                                  currentProgress: booking.progress,
+                                  onFeedbackPressed: () =>
+                                      _showFeedbackDialog(context, booking),
                                 )
                               : StreamBuilder<
                                   DocumentSnapshot<Map<String, dynamic>>
@@ -566,39 +672,43 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
                                     }
                                     if (!snapshot.hasData ||
                                         !snapshot.data!.exists) {
-                                      return const SizedBox(
-                                        height: 48,
-                                        child: Center(
-                                          child: CircularProgressIndicator(),
-                                        ),
+                                      return ProgressTracker(
+                                        currentProgress: booking.progress,
+                                        onFeedbackPressed: () =>
+                                            _showFeedbackDialog(
+                                              context,
+                                              booking,
+                                            ),
                                       );
                                     }
 
                                     final doc = snapshot.data!;
-                                    final updated = Booking.fromSnapshot(doc);
+                                    var updated = Booking.fromSnapshot(doc);
 
-                                    return Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        _buildProgressSummary(
-                                          updated.progress,
-                                          isDark,
-                                        ),
-                                        const SizedBox(height: 8),
-                                        ProgressTracker(
-                                          currentProgress: updated.progress,
-                                        ),
-                                      ],
+                                    // Auto-sync progress with status if needed
+                                    if (updated.status.toLowerCase().contains(
+                                          'in progress',
+                                        ) &&
+                                        updated.progress.index < 1) {
+                                      updated = updated.copyWith(
+                                        progress: BookingProgress.inProgress,
+                                      );
+                                    } else if (updated.status
+                                            .toLowerCase()
+                                            .contains('complete') &&
+                                        updated.progress.index < 2) {
+                                      updated = updated.copyWith(
+                                        progress: BookingProgress.completed,
+                                      );
+                                    }
+
+                                    return ProgressTracker(
+                                      currentProgress: updated.progress,
+                                      onFeedbackPressed: () =>
+                                          _showFeedbackDialog(context, updated),
                                     );
                                   },
                                 ))
-                        : (_isCompletedStatus(booking.status))
-                        ? _buildBookingActionButton(
-                            context: context,
-                            text: 'Feedback',
-                            onPressed: () =>
-                                _showFeedbackDialog(context, booking),
-                          )
                         : const SizedBox.shrink(),
                   ),
                 ],
@@ -688,56 +798,6 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
     );
   }
 
-  Widget _buildProgressSummary(BookingProgress progress, bool isDark) {
-    final steps = ['Started', 'In Progress', 'Service Complete'];
-    final maxIndex = steps.length - 1;
-    final idx = progress.index.clamp(0, maxIndex);
-    final percent = maxIndex > 0 ? ((idx / maxIndex) * 100).round() : 0;
-    final frac = maxIndex > 0 ? (idx / maxIndex) : 0.0;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              steps[idx],
-              style: AppTextStyle.withColor(
-                AppTextStyle.bodySmall,
-                isDark ? Colors.white : Colors.black,
-              ),
-            ),
-            Text(
-              '$percent% ',
-              style: AppTextStyle.withColor(
-                AppTextStyle.bodySmall,
-                isDark ? Colors.white70 : Colors.black54,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        // Animate the progress bar when progress updates for a subtle visual cue
-        TweenAnimationBuilder<double>(
-          tween: Tween<double>(begin: 0.0, end: frac),
-          duration: const Duration(milliseconds: 600),
-          builder: (context, animatedValue, child) {
-            return ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: LinearProgressIndicator(
-                value: animatedValue,
-                minHeight: 6,
-                backgroundColor: isDark ? Colors.white10 : Colors.grey[200],
-                valueColor: const AlwaysStoppedAnimation(Color(0xFF7F1618)),
-              ),
-            );
-          },
-        ),
-      ],
-    );
-  }
-
   // Show a feedback dialog for completed bookings and persist feedback to Firestore
   void _showFeedbackDialog(BuildContext context, Booking booking) {
     final user = FirebaseAuth.instance.currentUser;
@@ -750,7 +810,8 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext ctx) {
-        int rating = 5;
+        int serviceRating = 5;
+        int technicianRating = 5;
         final commentCtrl = TextEditingController();
 
         return StatefulBuilder(
@@ -767,6 +828,7 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // Service Rating
                     Text(
                       'How was the service?',
                       style: AppTextStyle.bodyMedium,
@@ -777,16 +839,43 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
                       children: List.generate(5, (i) {
                         final idx = i + 1;
                         return IconButton(
-                          onPressed: () => setState(() => rating = idx),
+                          onPressed: () => setState(() => serviceRating = idx),
                           icon: Icon(
-                            idx <= rating ? Icons.star : Icons.star_border,
+                            idx <= serviceRating
+                                ? Icons.star
+                                : Icons.star_border,
                             color: Colors.amber,
                             size: 32,
                           ),
                         );
                       }),
                     ),
+                    const SizedBox(height: 20),
+                    // Technician Rating
+                    Text(
+                      'How was the technician?',
+                      style: AppTextStyle.bodyMedium,
+                    ),
                     const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: List.generate(5, (i) {
+                        final idx = i + 1;
+                        return IconButton(
+                          onPressed: () =>
+                              setState(() => technicianRating = idx),
+                          icon: Icon(
+                            idx <= technicianRating
+                                ? Icons.star
+                                : Icons.star_border,
+                            color: Colors.amber,
+                            size: 32,
+                          ),
+                        );
+                      }),
+                    ),
+                    const SizedBox(height: 20),
+                    // Additional Comments
                     TextField(
                       controller: commentCtrl,
                       maxLines: 4,
@@ -823,14 +912,16 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
                       final feedbackDoc = {
                         'bookingId': booking.id,
                         'userId': user.uid,
-                        'rating': rating,
+                        'serviceRating': serviceRating,
+                        'technicianRating': technicianRating,
                         'comment': commentCtrl.text.trim(),
                         'createdAt': FieldValue.serverTimestamp(),
                       };
 
                       await FirebaseFirestore.instance
                           .collection('feedbacks')
-                          .add(feedbackDoc);
+                          .doc(booking.id)
+                          .set(feedbackDoc);
 
                       // Optionally mark booking as having feedback
                       if (booking.id != null) {
@@ -851,6 +942,8 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
                         colorText: Colors.white,
                         duration: const Duration(seconds: 3),
                       );
+                      // Navigate to Completed tab
+                      tabController.animateTo(2);
                     } catch (e) {
                       Navigator.of(context).pop(); // close loading
                       Get.snackbar(
@@ -925,7 +1018,11 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
           content: SizedBox(
             width: double.maxFinite, // Ensures the dialog is a reasonable width
             child: booking.id == null
-                ? ProgressTracker(currentProgress: booking.progress)
+                ? ProgressTracker(
+                    currentProgress: booking.progress,
+                    onFeedbackPressed: () =>
+                        _showFeedbackDialog(context, booking),
+                  )
                 : StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                     stream: FirebaseFirestore.instance
                         .collection('bookings')
@@ -936,7 +1033,9 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
                         return Center(child: Text('Error loading progress'));
                       }
                       if (!snapshot.hasData || !snapshot.data!.exists) {
-                        return const Center(child: CircularProgressIndicator());
+                        return ProgressTracker(
+                          currentProgress: booking.progress,
+                        );
                       }
 
                       final doc = snapshot.data!;
@@ -956,7 +1055,11 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
                               ),
                             ),
                           ),
-                          ProgressTracker(currentProgress: updated.progress),
+                          ProgressTracker(
+                            currentProgress: updated.progress,
+                            onFeedbackPressed: () =>
+                                _showFeedbackDialog(context, updated),
+                          ),
                         ],
                       );
                     },
@@ -1020,10 +1123,16 @@ class _TrackBookingScreenState extends State<TrackBookingScreen> {
 // The main widget to build the progress timeline
 class ProgressTracker extends StatelessWidget {
   final BookingProgress currentProgress;
-  const ProgressTracker({super.key, required this.currentProgress});
+  final VoidCallback? onFeedbackPressed;
+  const ProgressTracker({
+    super.key,
+    required this.currentProgress,
+    this.onFeedbackPressed,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     // Define the steps shown in the image
     final List<ServiceStep> steps = [
       ServiceStep(icon: Icons.flash_on, title: 'Started'),
@@ -1034,14 +1143,51 @@ class ProgressTracker extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: List.generate(steps.length, (index) {
-        return ProgressStepItem(
-          step: steps[index],
-          isLast: index == steps.length - 1,
-          isCurrent: index == currentProgress.index,
-          isComplete: index < currentProgress.index,
-        );
-      }),
+      children: [
+        Text(
+          'ESTIMATED TIME 45 MINS. - 1HR',
+          style: AppTextStyle.withColor(
+            AppTextStyle.small,
+            isDark
+                ? Colors.grey[400]!
+                : Theme.of(context).textTheme.bodyLarge!.color!,
+          ),
+        ),
+        const SizedBox(height: 16),
+        ...List.generate(steps.length, (index) {
+          return ProgressStepItem(
+            step: steps[index],
+            isLast: index == steps.length - 1,
+            isCurrent: index == currentProgress.index,
+            isComplete: index < currentProgress.index,
+          );
+        }),
+        const SizedBox(height: 24),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Expanded(
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF7F1618), // Dark Red
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: Text(
+                  'Feedback',
+                  style: AppTextStyle.withColor(
+                    AppTextStyle.bodySmall,
+                    Colors.white,
+                  ),
+                ),
+                onPressed: onFeedbackPressed ?? () => Get.back(),
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

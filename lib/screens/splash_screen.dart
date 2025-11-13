@@ -65,7 +65,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 child: const Column(
                   children: [
                     Text(
-                      "KINGSLEY",
+                      "",
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 32,
@@ -74,7 +74,7 @@ class _SplashScreenState extends State<SplashScreen> {
                       ),
                     ),
                     Text(
-                      "CARWASH",
+                      "",
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 32,
