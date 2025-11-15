@@ -1,5 +1,6 @@
 import 'package:capstone/utils/app_textstyles.dart';
 import 'package:capstone/models/booking.dart';
+import 'package:capstone/controllers/booking_controller.dart';
 import 'package:capstone/controllers/product_controller.dart';
 import 'package:capstone/view/widgets/booking_rescheduled_success.dart';
 import 'package:capstone/view/home/cart_screen.dart';
@@ -251,10 +252,7 @@ class _BookingRescheduledScreenState extends State<BookingRescheduledScreen> {
                 enabled: _selectedDate != null,
               ),
               const SizedBox(height: 24),
-              Text(
-                'Reason for Rescheduling (Optional)',
-                style: AppTextStyle.bodyMedium,
-              ),
+              Text('Reason for Rescheduling', style: AppTextStyle.bodyMedium),
               const SizedBox(height: 16),
               TextField(
                 controller: _rescheduleReasonController,
@@ -288,7 +286,7 @@ class _BookingRescheduledScreenState extends State<BookingRescheduledScreen> {
               width: double.infinity,
               height: 50.0,
               child: ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
                   if (_selectedTimeSlot == null) {
                     Get.snackbar(
                       'Incomplete',
@@ -297,8 +295,14 @@ class _BookingRescheduledScreenState extends State<BookingRescheduledScreen> {
                     );
                     return;
                   }
-                  // TODO: Implement actual reschedule logic (e.g., API call)
-                  Get.off(
+                  final bookingController = Get.find<BookingController>();
+                  await bookingController.rescheduleBooking(
+                    bookingId: widget.booking.id!,
+                    newDate: _selectedDate,
+                    newTime: _selectedTimeSlot!.format(context),
+                    reason: _rescheduleReasonController.text,
+                  );
+                  Get.offAll(
                     () => BookingRescheduledSuccess(
                       booking: widget.booking,
                       newDate: _selectedDate,

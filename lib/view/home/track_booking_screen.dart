@@ -1175,6 +1175,7 @@ class ProgressTracker extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
+                onPressed: onFeedbackPressed ?? () => Get.back(),
                 child: Text(
                   'Feedback',
                   style: AppTextStyle.withColor(
@@ -1182,7 +1183,6 @@ class ProgressTracker extends StatelessWidget {
                     Colors.white,
                   ),
                 ),
-                onPressed: onFeedbackPressed ?? () => Get.back(),
               ),
             ),
           ],

@@ -159,4 +159,42 @@ class BookingController extends GetxController {
       debugPrint("Error creating notification: $e");
     }
   }
+
+  /// Submits a request to reschedule an existing booking.
+  Future<void> rescheduleBooking({
+    required String bookingId,
+    required DateTime newDate,
+    required String newTime,
+    required String reason,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      Get.snackbar("Error", "You must be logged in to reschedule a booking.");
+      return;
+    }
+
+    try {
+      // 1. Add a reschedule request to a new collection for admin review.
+      final rescheduleRef = _db.collection('rescheduleRequests').doc();
+      await rescheduleRef.set({
+        'bookingId': bookingId,
+        'userId': user.uid,
+        'newDate': Timestamp.fromDate(newDate),
+        'newTime': newTime,
+        'reason': reason,
+        'status': 'pending', // Admin will review this request.
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // 2. Update the original booking's status to show a reschedule is pending.
+      await _db.collection('bookings').doc(bookingId).update({
+        'status': 'Reschedule Pending',
+      });
+
+      // The success screen is handled in the UI, so no snackbar here.
+    } catch (e) {
+      Get.snackbar("Error", "Failed to request reschedule. Please try again.");
+      debugPrint("Error rescheduling booking: $e");
+    }
+  }
 }
