@@ -95,7 +95,7 @@ class BookingController extends GetxController {
   }
 
   /// Adds a new booking to the Firestore database.
-  Future<void> addBooking(Booking booking) async {
+  Future<void> addBooking(Booking booking, {String? paymentMethod}) async {
     final user = _auth.currentUser;
     if (user == null) {
       Get.snackbar("Error", "You must be logged in to make a booking.");
@@ -124,6 +124,11 @@ class BookingController extends GetxController {
       );
 
       await _createBookingNotification(booking, customId);
+
+      // Create payment notification for cash payments
+      if (paymentMethod == 'Cash on Hand') {
+        await _createPaymentNotification(booking, customId);
+      }
     } catch (e) {
       Get.snackbar(
         "Error",
@@ -160,6 +165,30 @@ class BookingController extends GetxController {
     }
   }
 
+  /// Creates a notification for payment confirmation.
+  Future<void> _createPaymentNotification(
+    Booking booking,
+    String bookingId,
+  ) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    try {
+      await _db.collection('users').doc(user.uid).collection('notifications').add({
+        'title': 'Payment Confirmed!',
+        'body':
+            'Your payment of ₱${booking.price.toStringAsFixed(2)} for ${booking.serviceNames.join(', ')} has been confirmed.',
+        'createdAt': FieldValue.serverTimestamp(),
+        'isRead': false,
+        'type': 'payment_confirmed',
+        'bookingId': bookingId,
+      });
+    } catch (e) {
+      // Silently fail or log to console. We don't want to block the user flow.
+      debugPrint("Error creating payment notification: $e");
+    }
+  }
+
   /// Submits a request to reschedule an existing booking.
   Future<void> rescheduleBooking({
     required String bookingId,
@@ -172,29 +201,162 @@ class BookingController extends GetxController {
       Get.snackbar("Error", "You must be logged in to reschedule a booking.");
       return;
     }
+    final bookingRef = _db.collection('bookings').doc(bookingId);
+    // Use a subcollection under the booking to keep reschedule requests grouped and auditable.
+    final rescheduleRef = bookingRef.collection('rescheduleRequests').doc();
 
     try {
-      // 1. Add a reschedule request to a new collection for admin review.
-      final rescheduleRef = _db.collection('rescheduleRequests').doc();
-      await rescheduleRef.set({
+      // Pre-check: read booking once to validate ownership and status so we can
+      // show a clearer diagnostic if permissions fail. The security rules will
+      // still be enforced on the transaction that writes the request.
+      final bookingSnapDirect = await bookingRef.get();
+      if (!bookingSnapDirect.exists) {
+        Get.snackbar("Error", "Booking not found.");
+        return;
+      }
+
+      final bookingData = bookingSnapDirect.data();
+      final ownerId = bookingData?['userId']?.toString();
+      final currentStatus =
+          bookingData?['status']?.toString().toLowerCase() ?? '';
+
+      // Quick client-side checks before attempting the write.
+      if (ownerId != user.uid) {
+        Get.snackbar("Not allowed", "You are not the owner of this booking.");
+        return;
+      }
+
+      if (!currentStatus.contains('pend')) {
+        Get.snackbar(
+          "Not allowed",
+          "You can only request a reschedule while the booking is pending approval.",
+        );
+        return;
+      }
+
+      // Proceed to create the reschedule request inside a transaction. We avoid
+      // updating the booking document here because that requires admin privileges.
+      await _db.runTransaction((tx) async {
+        tx.set(rescheduleRef, {
+          'bookingId': bookingId,
+          'userId': user.uid,
+          'newDate': Timestamp.fromDate(newDate),
+          'newTime': newTime,
+          'reason': reason,
+          'status': 'pending', // Admin will review this request.
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      });
+      // Success: UI will navigate to success screen, so no success snackbar here.
+    } catch (e) {
+      // Surface FirebaseException details to make debugging easier.
+      if (e is FirebaseException) {
+        debugPrint('FirebaseException (${e.code}): ${e.message}');
+        if (e.code == 'permission-denied') {
+          Get.snackbar(
+            "Permission denied",
+            "You don't have permission to perform this action. If you believe this is an error, contact support.",
+          );
+          return;
+        }
+      }
+
+      Get.snackbar("Error", "Failed to request reschedule. Please try again.");
+      debugPrint("Error rescheduling booking: $e");
+    }
+  }
+
+  /// Submits feedback for a completed booking.
+  Future<void> submitFeedback({
+    required String bookingId,
+    required int serviceRating,
+    required int technicianRating,
+    required String comment,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception("You must be logged in to submit feedback.");
+    }
+
+    try {
+      // Write feedback to Firestore
+      await _db.collection('feedbacks').doc(bookingId).set({
         'bookingId': bookingId,
         'userId': user.uid,
-        'newDate': Timestamp.fromDate(newDate),
-        'newTime': newTime,
-        'reason': reason,
-        'status': 'pending', // Admin will review this request.
+        'serviceRating': serviceRating,
+        'technicianRating': technicianRating,
+        'comment': comment,
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // 2. Update the original booking's status to show a reschedule is pending.
-      await _db.collection('bookings').doc(bookingId).update({
-        'status': 'Reschedule Pending',
-      });
+      debugPrint(
+        'Feedback written to feedbacks collection for booking: $bookingId',
+      );
 
-      // The success screen is handled in the UI, so no snackbar here.
+      // Update the booking to mark feedback as given
+      // Update the booking to mark feedback as given.
+      // We perform a lightweight pre-check to avoid triggering a permissions
+      // error when the current user is not the booking owner. If the update
+      // fails due to security rules, we surface a friendly snackbar rather
+      // than failing the whole feedback submission since the feedback
+      // document is already persisted.
+      try {
+        final bookingRef = _db.collection('bookings').doc(bookingId);
+
+        // Read booking once to validate ownership before attempting update.
+        final bookingSnap = await bookingRef.get();
+        if (bookingSnap.exists) {
+          final ownerId = bookingSnap.data()?['userId']?.toString();
+          if (ownerId == user.uid) {
+            try {
+              await bookingRef.set({
+                'feedbackGiven': true,
+              }, SetOptions(merge: true));
+              debugPrint(
+                'Booking updated with feedbackGiven=true for booking: $bookingId',
+              );
+            } catch (updateError) {
+              debugPrint(
+                'Warning: Could not update booking feedback flag: $updateError',
+              );
+              // If the failure is a permission error, inform the user but
+              // don't treat the whole submission as failed because feedback
+              // was already saved.
+              if (updateError is FirebaseException &&
+                  (updateError.code == 'permission-denied' ||
+                      updateError.code == 'PERMISSION_DENIED')) {
+                Get.snackbar(
+                  'Feedback saved',
+                  'Your feedback was saved, but we could not mark the booking as "feedback given" due to permissions. The admin will be notified.',
+                  snackPosition: SnackPosition.TOP,
+                );
+              }
+            }
+          } else {
+            debugPrint(
+              'Skipping booking update: current user is not the owner (ownerId=$ownerId, user=${user.uid})',
+            );
+          }
+        } else {
+          debugPrint(
+            'Booking document not found while updating feedback flag.',
+          );
+        }
+      } catch (updateError) {
+        debugPrint(
+          'Warning: Could not read booking before updating flag: $updateError',
+        );
+      }
     } catch (e) {
-      Get.snackbar("Error", "Failed to request reschedule. Please try again.");
-      debugPrint("Error rescheduling booking: $e");
+      debugPrint('Error submitting feedback: $e');
+      if (e is FirebaseException) {
+        debugPrint(
+          'FirebaseException submitting feedback (code=${e.code}): ${e.message}',
+        );
+        throw Exception('Failed to submit feedback: ${e.message ?? e.code}');
+      } else {
+        throw Exception('Failed to submit feedback: $e');
+      }
     }
   }
 }

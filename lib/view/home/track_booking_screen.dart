@@ -55,6 +55,7 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
           .fetchUserBookings(user.uid)
           .listen(
             (bookings) {
+              if (!mounted) return; // Prevent updates if the widget is disposed
               for (final b in bookings) {
                 final id = b.id ?? '';
                 final prev = _previousStatuses[id];
@@ -105,7 +106,14 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
         s.contains('done');
   }
 
+  bool _isCancelledStatus(String? status) {
+    if (status == null) return false;
+    final s = status.toLowerCase();
+    return s.contains('cancel') || s.contains('cancelled');
+  }
+
   void _showStatusNotification(Booking booking) {
+    if (!mounted) return;
     final s = booking.status.toLowerCase();
 
     String title;
@@ -232,30 +240,31 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
           final upcoming = allBookings
               .where(
                 (b) =>
-                    !_isActiveStatus(b.status) && !_isCompletedStatus(b.status),
+                    !_isActiveStatus(b.status) &&
+                    !_isCompletedStatus(b.status) &&
+                    !_isCancelledStatus(b.status),
               )
               .toList();
           final active = allBookings
               .where(
                 (b) =>
-                    _isActiveStatus(b.status) ||
-                    (_isCompletedStatus(b.status) &&
-                        !(b.feedbackGiven ?? false)),
+                    _isActiveStatus(b.status) && !_isCancelledStatus(b.status),
               )
               .toList();
           final completed = allBookings
               .where(
                 (b) =>
-                    _isCompletedStatus(b.status) && (b.feedbackGiven ?? false),
+                    _isCompletedStatus(b.status) &&
+                    !_isCancelledStatus(b.status),
               )
               .toList();
 
           return TabBarView(
             controller: tabController,
             children: [
-              _buildBookingList(context, upcoming, isDark),
-              _buildBookingList(context, active, isDark),
-              _buildBookingList(context, completed, isDark),
+              _buildBookingList(context, upcoming, isDark, 'Upcoming'),
+              _buildBookingList(context, active, isDark, 'Active'),
+              _buildBookingList(context, completed, isDark, 'Completed'),
             ],
           );
         },
@@ -266,12 +275,13 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
   Widget _buildBookingList(
     BuildContext context,
     List<Booking> bookings,
-    bool isDark,
-  ) {
+    bool isDark, [
+    String tabName = '',
+  ]) {
     if (bookings.isEmpty) {
       return Center(
         child: Text(
-          'No bookings here.',
+          tabName == 'Active' ? 'No Bookings Here' : 'No bookings here.',
           style: AppTextStyle.withColor(
             AppTextStyle.bodyMedium,
             isDark ? Colors.grey[400]! : Colors.grey[600]!,
@@ -283,11 +293,16 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
       padding: const EdgeInsets.all(16),
       itemCount: bookings.length,
       itemBuilder: (context, index) =>
-          _buildBookingCard(context, bookings[index], isDark),
+          _buildBookingCard(context, bookings[index], isDark, tabName),
     );
   }
 
-  Widget _buildBookingCard(BuildContext context, Booking booking, bool isDark) {
+  Widget _buildBookingCard(
+    BuildContext context,
+    Booking booking,
+    bool isDark, [
+    String tabName = '',
+  ]) {
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
       elevation: 2,
@@ -532,7 +547,132 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
               ),
             ),
             const Divider(height: 24),
-            if (_isCompletedStatus(booking.status) &&
+            if (tabName == 'Completed' && _isCompletedStatus(booking.status))
+              FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                future: (booking.feedbackGiven ?? false) && booking.id != null
+                    ? FirebaseFirestore.instance
+                          .collection('feedbacks')
+                          .doc(booking.id)
+                          .get()
+                    : null,
+                builder: (context, snapshot) {
+                  if (!(booking.feedbackGiven ?? false)) {
+                    // No feedback, show feedback button
+                    return Column(
+                      children: [
+                        const SizedBox(height: 16),
+                        Center(
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF7F1618),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                            ),
+                            onPressed: () =>
+                                _showFeedbackDialog(context, booking),
+                            child: Text(
+                              'Leave Feedback',
+                              style: AppTextStyle.withColor(
+                                AppTextStyle.bodySmall,
+                                Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+                  if (snapshot.hasError ||
+                      !snapshot.hasData ||
+                      !snapshot.data!.exists) {
+                    return const SizedBox.shrink(); // Should not happen if feedbackGiven is true
+                  }
+                  // Feedback exists, show it
+                  final feedbackDoc = snapshot.data!.data()!;
+                  final serviceRating =
+                      feedbackDoc['serviceRating'] as int? ?? 0;
+                  final technicianRating =
+                      feedbackDoc['technicianRating'] as int? ?? 0;
+                  final comment = feedbackDoc['comment'] as String? ?? '';
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 16),
+                      Text(
+                        'Your Feedback',
+                        style: AppTextStyle.withColor(
+                          AppTextStyle.bodyMedium.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                          Theme.of(context).textTheme.bodyLarge!.color!,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Text(
+                            'Service: ',
+                            style: AppTextStyle.withColor(
+                              AppTextStyle.bodySmall,
+                              isDark ? Colors.grey[400]! : Colors.grey[600]!,
+                            ),
+                          ),
+                          ...List.generate(
+                            5,
+                            (i) => Icon(
+                              i < serviceRating
+                                  ? Icons.star
+                                  : Icons.star_border,
+                              color: Colors.amber,
+                              size: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Text(
+                            'Technician: ',
+                            style: AppTextStyle.withColor(
+                              AppTextStyle.bodySmall,
+                              isDark ? Colors.grey[400]! : Colors.grey[600]!,
+                            ),
+                          ),
+                          ...List.generate(
+                            5,
+                            (i) => Icon(
+                              i < technicianRating
+                                  ? Icons.star
+                                  : Icons.star_border,
+                              color: Colors.amber,
+                              size: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (comment.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          'Comment: $comment',
+                          style: AppTextStyle.withColor(
+                            AppTextStyle.bodySmall,
+                            isDark ? Colors.grey[400]! : Colors.grey[600]!,
+                          ),
+                        ),
+                      ],
+                    ],
+                  );
+                },
+              )
+            else if (_isCompletedStatus(booking.status) &&
                 (booking.feedbackGiven ?? false))
               FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                 future: FirebaseFirestore.instance
@@ -806,13 +946,14 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
       return;
     }
 
+    final commentCtrl = TextEditingController();
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext ctx) {
         int serviceRating = 5;
         int technicianRating = 5;
-        final commentCtrl = TextEditingController();
 
         return StatefulBuilder(
           builder: (context, setState) {
@@ -889,10 +1030,7 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
               ),
               actions: [
                 TextButton(
-                  onPressed: () {
-                    commentCtrl.dispose();
-                    Get.back();
-                  },
+                  onPressed: () => Get.back(),
                   child: Text('Cancel', style: AppTextStyle.bodySmall),
                 ),
                 ElevatedButton(
@@ -909,29 +1047,13 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
                     );
 
                     try {
-                      final feedbackDoc = {
-                        'bookingId': booking.id,
-                        'userId': user.uid,
-                        'serviceRating': serviceRating,
-                        'technicianRating': technicianRating,
-                        'comment': commentCtrl.text.trim(),
-                        'createdAt': FieldValue.serverTimestamp(),
-                      };
+                      await bookingController.submitFeedback(
+                        bookingId: booking.id!,
+                        serviceRating: serviceRating,
+                        technicianRating: technicianRating,
+                        comment: commentCtrl.text.trim(),
+                      );
 
-                      await FirebaseFirestore.instance
-                          .collection('feedbacks')
-                          .doc(booking.id)
-                          .set(feedbackDoc);
-
-                      // Optionally mark booking as having feedback
-                      if (booking.id != null) {
-                        await FirebaseFirestore.instance
-                            .collection('bookings')
-                            .doc(booking.id)
-                            .update({'feedbackGiven': true});
-                      }
-
-                      commentCtrl.dispose();
                       Navigator.of(context).pop(); // close loading
                       Get.back(); // close dialog
                       Get.snackbar(
@@ -944,7 +1066,9 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
                       );
                       // Navigate to Completed tab
                       tabController.animateTo(2);
-                    } catch (e) {
+                    } catch (e, s) {
+                      print('Failed to submit feedback: $e');
+                      print(s);
                       Navigator.of(context).pop(); // close loading
                       Get.snackbar(
                         'Error',
@@ -953,6 +1077,7 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
                         backgroundColor: Colors.red,
                         colorText: Colors.white,
                       );
+                      Get.back(); // close dialog on error
                     }
                   },
                   child: Text(
@@ -965,7 +1090,10 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
           },
         );
       },
-    );
+    ).then((_) {
+      // This ensures the controller is disposed only once when the dialog is closed.
+      commentCtrl.dispose();
+    });
   }
 
   // ignore: unused_element
@@ -1162,31 +1290,6 @@ class ProgressTracker extends StatelessWidget {
             isComplete: index < currentProgress.index,
           );
         }),
-        const SizedBox(height: 24),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Expanded(
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF7F1618), // Dark Red
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: onFeedbackPressed ?? () => Get.back(),
-                child: Text(
-                  'Feedback',
-                  style: AppTextStyle.withColor(
-                    AppTextStyle.bodySmall,
-                    Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
       ],
     );
   }

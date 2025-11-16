@@ -15,6 +15,7 @@ class Booking {
   final String? carType;
   final String? plateNumber;
   final String? phoneNumber;
+  final String? paymentMethod;
   final BookingProgress progress;
   final bool? feedbackGiven;
 
@@ -31,6 +32,7 @@ class Booking {
     this.carType,
     this.plateNumber,
     this.phoneNumber,
+    this.paymentMethod,
     this.progress = BookingProgress.started,
     this.feedbackGiven = false,
   });
@@ -49,6 +51,7 @@ class Booking {
       'carType': carType,
       'plateNumber': plateNumber,
       'phoneNumber': phoneNumber,
+      'paymentMethod': paymentMethod,
       'progress': progress.name, // Store enum as a string
       'feedbackGiven': feedbackGiven,
     };
@@ -70,6 +73,7 @@ class Booking {
       carType: data['carType'],
       plateNumber: data['plateNumber'],
       phoneNumber: data['phoneNumber'],
+      paymentMethod: data['paymentMethod'],
       progress: BookingProgress.values.firstWhere(
         (e) => e.name == data['progress'],
         orElse: () => BookingProgress.started,
@@ -91,6 +95,7 @@ class Booking {
     String? carType,
     String? plateNumber,
     String? phoneNumber,
+    String? paymentMethod,
     BookingProgress? progress,
     bool? feedbackGiven,
   }) {
@@ -107,6 +112,7 @@ class Booking {
       carType: carType ?? this.carType,
       plateNumber: plateNumber ?? this.plateNumber,
       phoneNumber: phoneNumber ?? this.phoneNumber,
+      paymentMethod: paymentMethod ?? this.paymentMethod,
       progress: progress ?? this.progress,
       feedbackGiven: feedbackGiven ?? this.feedbackGiven,
     );

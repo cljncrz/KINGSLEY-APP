@@ -621,9 +621,13 @@ class _BookNowScreenState extends State<BookNowScreen> {
                       carName: _carNameController.text.trim(),
                       plateNumber: _plateNumberController.text.trim(),
                       phoneNumber: _phoneNumberController.text.trim(),
+                      paymentMethod: _selectedPaymentMethod,
                     );
 
-                    bookingController.addBooking(newBooking);
+                    bookingController.addBooking(
+                      newBooking,
+                      paymentMethod: _selectedPaymentMethod,
+                    );
                     // The item booked via "Book Now" is not added to the cart, so no need to clear cartController.cartItems.
                     Get.offAll(() => const BookingSuccessfulScreen());
                   } else {

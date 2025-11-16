@@ -93,9 +93,6 @@ class BookingRescheduledSuccess extends StatelessWidget {
                       text: '$formattedDate at $formattedTime.',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
-                    const TextSpan(
-                      text: ' Our service provider will contact you soon.',
-                    ),
                   ],
                 ),
               ),

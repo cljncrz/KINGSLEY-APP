@@ -203,6 +203,42 @@ class _BookingRescheduledScreenState extends State<BookingRescheduledScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Only allow rescheduling when booking status is "pending".
+              // If booking has a different status (e.g. approved), we disable inputs and show a notice.
+              Builder(
+                builder: (context) {
+                  final bookingStatus = widget.booking.status
+                      .toString()
+                      .toLowerCase();
+                  final canReschedule = bookingStatus == 'pending';
+                  if (!canReschedule) {
+                    final statusText = widget.booking.status.toString();
+                    return Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12.0),
+                      margin: const EdgeInsets.only(bottom: 12.0),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(8.0),
+                        border: Border.all(color: Colors.orange.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.info_outline, color: Colors.orange),
+                          const SizedBox(width: 8.0),
+                          Expanded(
+                            child: Text(
+                              'Reschedule not allowed — booking status: $statusText. Contact support or wait for admin decision.',
+                              style: AppTextStyle.bodyMedium,
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  return const SizedBox.shrink();
+                },
+              ),
               Column(
                 children: [
                   ...widget.booking.serviceNames.asMap().entries.map((entry) {
@@ -223,6 +259,7 @@ class _BookingRescheduledScreenState extends State<BookingRescheduledScreen> {
                 style: AppTextStyle.bodyMedium,
               ),
               const SizedBox(height: 24),
+              // Date picker disabled when reschedule not allowed.
               ListTile(
                 title: Text('New Date', style: AppTextStyle.bodyMedium),
                 subtitle: Text(
@@ -233,7 +270,22 @@ class _BookingRescheduledScreenState extends State<BookingRescheduledScreen> {
                   ),
                 ),
                 trailing: const Icon(Icons.calendar_today),
-                onTap: () => _selectDate(context),
+                onTap: () {
+                  final bookingStatus = widget.booking.status
+                      .toString()
+                      .toLowerCase();
+                  final canReschedule = bookingStatus == 'pending';
+                  if (!canReschedule) {
+                    Get.snackbar(
+                      'Not allowed',
+                      'You cannot reschedule this booking at the moment.',
+                    );
+                    return;
+                  }
+                  _selectDate(context);
+                },
+                enabled:
+                    widget.booking.status.toString().toLowerCase() == 'pending',
               ),
               const Divider(),
               ListTile(
@@ -248,8 +300,22 @@ class _BookingRescheduledScreenState extends State<BookingRescheduledScreen> {
                   ),
                 ),
                 trailing: const Icon(Icons.access_time),
-                onTap: () => _selectTime(context),
-                enabled: _selectedDate != null,
+                onTap: () {
+                  final bookingStatus = widget.booking.status
+                      .toString()
+                      .toLowerCase();
+                  final canReschedule = bookingStatus == 'pending';
+                  if (!canReschedule) {
+                    Get.snackbar(
+                      'Not allowed',
+                      'You cannot reschedule this booking at the moment.',
+                    );
+                    return;
+                  }
+                  _selectTime(context);
+                },
+                enabled:
+                    widget.booking.status.toString().toLowerCase() == 'pending',
               ),
               const SizedBox(height: 24),
               Text('Reason for Rescheduling', style: AppTextStyle.bodyMedium),
@@ -287,6 +353,18 @@ class _BookingRescheduledScreenState extends State<BookingRescheduledScreen> {
               height: 50.0,
               child: ElevatedButton(
                 onPressed: () async {
+                  final bookingStatus = widget.booking.status
+                      .toString()
+                      .toLowerCase();
+                  final canReschedule = bookingStatus == 'pending';
+                  if (!canReschedule) {
+                    Get.snackbar(
+                      'Not allowed',
+                      'This booking cannot be rescheduled because it is not pending approval.',
+                      snackPosition: SnackPosition.TOP,
+                    );
+                    return;
+                  }
                   if (_selectedTimeSlot == null) {
                     Get.snackbar(
                       'Incomplete',
