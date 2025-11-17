@@ -4,7 +4,6 @@ import 'package:capstone/view/home/account/about_kingsley_carwash_screen.dart';
 import 'package:capstone/controllers/user_controller.dart'; // Import UserController
 import 'package:capstone/utils/app_textstyles.dart';
 import 'package:capstone/view/home/account/privacy_policy_screen.dart';
-import 'package:capstone/view/home/account/reviews_screen.dart';
 import 'package:capstone/view/home/account/terms_and_conditions_screen.dart';
 import 'package:capstone/view/home/account/edit_profile_screen.dart';
 import 'package:capstone/view/home/account/faqs_screen.dart';
@@ -227,7 +226,6 @@ Widget _buildProfileDetails(
 Widget _buildMenuSection(BuildContext context) {
   final isDark = Theme.of(context).brightness == Brightness.dark;
   final menuItems = [
-    {'icon': Icons.star_outline, 'title': 'Reviews'},
     {'icon': Icons.info_outline, 'title': 'About Kingsley Carwash'},
     {'icon': Icons.message_sharp, 'title': '(FAQs)'},
     {'icon': Icons.policy_outlined, 'title': 'Privacy Policy'},
@@ -273,10 +271,6 @@ Widget _buildMenuSection(BuildContext context) {
             onTap: () {
               if (item['title'] == 'Log Out') {
                 _showLogOutDialog(context);
-              } else if (item['title'] == 'Reviews') {
-                Get.to(() => const ReviewsScreen());
-              } else if (item['title'] == 'Rate our Technicians') {
-                // navigation to rate our technicians
               } else if (item['title'] == 'About Kingsley Carwash') {
                 Get.to(() => const AboutKingsleyCarwashScreen());
               } else if (item['title'] == 'Booking History') {

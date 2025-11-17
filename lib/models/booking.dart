@@ -17,7 +17,6 @@ class Booking {
   final String? phoneNumber;
   final String? paymentMethod;
   final BookingProgress progress;
-  final bool? feedbackGiven;
 
   Booking({
     this.id,
@@ -34,7 +33,6 @@ class Booking {
     this.phoneNumber,
     this.paymentMethod,
     this.progress = BookingProgress.started,
-    this.feedbackGiven = false,
   });
 
   /// Converts a Booking object into a Map<String, dynamic> for Firestore.
@@ -53,7 +51,6 @@ class Booking {
       'phoneNumber': phoneNumber,
       'paymentMethod': paymentMethod,
       'progress': progress.name, // Store enum as a string
-      'feedbackGiven': feedbackGiven,
     };
   }
 
@@ -78,7 +75,6 @@ class Booking {
         (e) => e.name == data['progress'],
         orElse: () => BookingProgress.started,
       ),
-      feedbackGiven: data['feedbackGiven'] ?? false,
     );
   }
 
@@ -97,7 +93,6 @@ class Booking {
     String? phoneNumber,
     String? paymentMethod,
     BookingProgress? progress,
-    bool? feedbackGiven,
   }) {
     return Booking(
       id: id ?? this.id,
@@ -114,7 +109,6 @@ class Booking {
       phoneNumber: phoneNumber ?? this.phoneNumber,
       paymentMethod: paymentMethod ?? this.paymentMethod,
       progress: progress ?? this.progress,
-      feedbackGiven: feedbackGiven ?? this.feedbackGiven,
     );
   }
 }

@@ -1,10 +1,12 @@
 import 'package:capstone/controllers/navigation_controller.dart';
 import 'package:capstone/utils/app_textstyles.dart';
+import 'package:capstone/controllers/feedback_controller.dart';
 import 'package:capstone/controllers/booking_controller.dart';
 import 'package:capstone/controllers/notification_controller.dart';
 import 'package:capstone/models/booking.dart';
 import 'package:capstone/screens/signup/signup_screen.dart';
 import 'package:capstone/view/widgets/booking_view_details_screen.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -360,7 +362,7 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
                           ),
                         ),
                         Text(
-                          'Price: ₱${booking.price.toStringAsFixed(2)}',
+                          'Price: ${booking.price.toStringAsFixed(2)}',
                           style: AppTextStyle.withColor(
                             AppTextStyle.bodySmall,
                             isDark ? Colors.white70 : Colors.green.shade800,
@@ -547,232 +549,7 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
               ),
             ),
             const Divider(height: 24),
-            if (tabName == 'Completed' && _isCompletedStatus(booking.status))
-              FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                future: (booking.feedbackGiven ?? false) && booking.id != null
-                    ? FirebaseFirestore.instance
-                          .collection('feedbacks')
-                          .doc(booking.id)
-                          .get()
-                    : null,
-                builder: (context, snapshot) {
-                  if (!(booking.feedbackGiven ?? false)) {
-                    // No feedback, show feedback button
-                    return Column(
-                      children: [
-                        const SizedBox(height: 16),
-                        Center(
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF7F1618),
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            onPressed: () =>
-                                _showFeedbackDialog(context, booking),
-                            child: Text(
-                              'Leave Feedback',
-                              style: AppTextStyle.withColor(
-                                AppTextStyle.bodySmall,
-                                Colors.white,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  }
-
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (snapshot.hasError ||
-                      !snapshot.hasData ||
-                      !snapshot.data!.exists) {
-                    return const SizedBox.shrink(); // Should not happen if feedbackGiven is true
-                  }
-                  // Feedback exists, show it
-                  final feedbackDoc = snapshot.data!.data()!;
-                  final serviceRating =
-                      feedbackDoc['serviceRating'] as int? ?? 0;
-                  final technicianRating =
-                      feedbackDoc['technicianRating'] as int? ?? 0;
-                  final comment = feedbackDoc['comment'] as String? ?? '';
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 16),
-                      Text(
-                        'Your Feedback',
-                        style: AppTextStyle.withColor(
-                          AppTextStyle.bodyMedium.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                          Theme.of(context).textTheme.bodyLarge!.color!,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Text(
-                            'Service: ',
-                            style: AppTextStyle.withColor(
-                              AppTextStyle.bodySmall,
-                              isDark ? Colors.grey[400]! : Colors.grey[600]!,
-                            ),
-                          ),
-                          ...List.generate(
-                            5,
-                            (i) => Icon(
-                              i < serviceRating
-                                  ? Icons.star
-                                  : Icons.star_border,
-                              color: Colors.amber,
-                              size: 16,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Text(
-                            'Technician: ',
-                            style: AppTextStyle.withColor(
-                              AppTextStyle.bodySmall,
-                              isDark ? Colors.grey[400]! : Colors.grey[600]!,
-                            ),
-                          ),
-                          ...List.generate(
-                            5,
-                            (i) => Icon(
-                              i < technicianRating
-                                  ? Icons.star
-                                  : Icons.star_border,
-                              color: Colors.amber,
-                              size: 16,
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (comment.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          'Comment: $comment',
-                          style: AppTextStyle.withColor(
-                            AppTextStyle.bodySmall,
-                            isDark ? Colors.grey[400]! : Colors.grey[600]!,
-                          ),
-                        ),
-                      ],
-                    ],
-                  );
-                },
-              )
-            else if (_isCompletedStatus(booking.status) &&
-                (booking.feedbackGiven ?? false))
-              FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                future: FirebaseFirestore.instance
-                    .collection('feedbacks')
-                    .doc(booking.id)
-                    .get(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (snapshot.hasError ||
-                      !snapshot.hasData ||
-                      !snapshot.data!.exists) {
-                    return Text(
-                      'Feedback not available',
-                      style: AppTextStyle.withColor(
-                        AppTextStyle.bodySmall,
-                        isDark ? Colors.grey[400]! : Colors.grey[600]!,
-                      ),
-                    );
-                  }
-                  final feedbackDoc = snapshot.data!.data()!;
-                  final serviceRating =
-                      feedbackDoc['serviceRating'] as int? ?? 0;
-                  final technicianRating =
-                      feedbackDoc['technicianRating'] as int? ?? 0;
-                  final comment = feedbackDoc['comment'] as String? ?? '';
-
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const SizedBox(height: 16),
-                      Text(
-                        'Your Feedback',
-                        style: AppTextStyle.withColor(
-                          AppTextStyle.bodyMedium.copyWith(
-                            fontWeight: FontWeight.bold,
-                          ),
-                          Theme.of(context).textTheme.bodyLarge!.color!,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Text(
-                            'Service: ',
-                            style: AppTextStyle.withColor(
-                              AppTextStyle.bodySmall,
-                              isDark ? Colors.grey[400]! : Colors.grey[600]!,
-                            ),
-                          ),
-                          ...List.generate(
-                            5,
-                            (i) => Icon(
-                              i < serviceRating
-                                  ? Icons.star
-                                  : Icons.star_border,
-                              color: Colors.amber,
-                              size: 16,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Text(
-                            'Technician: ',
-                            style: AppTextStyle.withColor(
-                              AppTextStyle.bodySmall,
-                              isDark ? Colors.grey[400]! : Colors.grey[600]!,
-                            ),
-                          ),
-                          ...List.generate(
-                            5,
-                            (i) => Icon(
-                              i < technicianRating
-                                  ? Icons.star
-                                  : Icons.star_border,
-                              color: Colors.amber,
-                              size: 16,
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (comment.isNotEmpty) ...[
-                        const SizedBox(height: 8),
-                        Text(
-                          'Comment: $comment',
-                          style: AppTextStyle.withColor(
-                            AppTextStyle.bodySmall,
-                            isDark ? Colors.grey[400]! : Colors.grey[600]!,
-                          ),
-                        ),
-                      ],
-                    ],
-                  );
-                },
-              )
-            else if (booking.status == 'Pending' ||
+            if (booking.status == 'Pending' ||
                 _isApprovedStatus(booking.status))
               Column(
                 children: [
@@ -787,6 +564,16 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
                   ),
                 ],
               )
+            else if (_isCompletedStatus(booking.status))
+              Obx(() {
+                final feedbackController = Get.find<FeedbackController>();
+                final hasServiceFeedback = feedbackController.serviceFeedbacks
+                    .containsKey(booking.id);
+
+                return hasServiceFeedback
+                    ? _buildFeedbackDisplay(context, booking, isDark)
+                    : _buildFeedbackButton(context, booking);
+              })
             else
               Column(
                 children: [
@@ -796,8 +583,6 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
                         ? (booking.id == null
                               ? ProgressTracker(
                                   currentProgress: booking.progress,
-                                  onFeedbackPressed: () =>
-                                      _showFeedbackDialog(context, booking),
                                 )
                               : StreamBuilder<
                                   DocumentSnapshot<Map<String, dynamic>>
@@ -814,11 +599,6 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
                                         !snapshot.data!.exists) {
                                       return ProgressTracker(
                                         currentProgress: booking.progress,
-                                        onFeedbackPressed: () =>
-                                            _showFeedbackDialog(
-                                              context,
-                                              booking,
-                                            ),
                                       );
                                     }
 
@@ -844,8 +624,6 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
 
                                     return ProgressTracker(
                                       currentProgress: updated.progress,
-                                      onFeedbackPressed: () =>
-                                          _showFeedbackDialog(context, updated),
                                     );
                                   },
                                 ))
@@ -855,6 +633,128 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildFeedbackButton(BuildContext context, Booking booking) {
+    return Column(
+      children: [
+        const SizedBox(height: 16),
+        Center(
+          child: _buildBookingActionButton(
+            context: context,
+            text: 'Feedback',
+            onPressed: () {
+              if (booking.id != null) {
+                _showFeedbackDialog(context, booking);
+              } else {
+                Get.snackbar('Error', 'Cannot give feedback for this booking.');
+              }
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFeedbackDisplay(
+    BuildContext context,
+    Booking booking,
+    bool isDark,
+  ) {
+    final feedbackController = Get.find<FeedbackController>();
+    final serviceFeedback = feedbackController.serviceFeedbacks[booking.id];
+    final techFeedback = feedbackController.technicianFeedbacks[booking.id];
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (serviceFeedback != null) ...[
+            Text(
+              'Service Feedback',
+              style: AppTextStyle.bodyMedium.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                RatingBarIndicator(
+                  rating: serviceFeedback.rating,
+                  itemBuilder: (context, index) =>
+                      const Icon(Icons.star, color: Colors.amber),
+                  itemCount: 5,
+                  itemSize: 18.0,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '(${serviceFeedback.rating})',
+                  style: AppTextStyle.bodySmall,
+                ),
+              ],
+            ),
+            if (serviceFeedback.comment.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                '"${serviceFeedback.comment}"',
+                style: AppTextStyle.bodySmall.copyWith(
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+            const SizedBox(height: 12),
+          ],
+          if (techFeedback != null) ...[
+            Text(
+              'Feedback for ${techFeedback.technicianName}',
+              style: AppTextStyle.bodySmall.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                RatingBarIndicator(
+                  rating: techFeedback.rating,
+                  itemBuilder: (context, index) =>
+                      const Icon(Icons.star, color: Colors.amber),
+                  itemCount: 5,
+                  itemSize: 18.0,
+                ),
+                const SizedBox(width: 8),
+                Text('(${techFeedback.rating})', style: AppTextStyle.bodySmall),
+              ],
+            ),
+            if (techFeedback.comment != null &&
+                techFeedback.comment!.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                '"${techFeedback.comment}"',
+                style: AppTextStyle.bodySmall.copyWith(
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          ] else if (booking.technician != null &&
+              booking.technician!.isNotEmpty) ...[
+            Text(
+              'Technician Feedback (${booking.technician})',
+              style: AppTextStyle.bodySmall.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'You chose to skip providing feedback for the technician.',
+              style: AppTextStyle.bodySmall.copyWith(
+                fontStyle: FontStyle.italic,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -938,162 +838,170 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
     );
   }
 
-  // Show a feedback dialog for completed bookings and persist feedback to Firestore
   void _showFeedbackDialog(BuildContext context, Booking booking) {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      Get.snackbar('Not signed in', 'Please sign in to submit feedback');
-      return;
+    final feedbackController = Get.find<FeedbackController>();
+    final commentTextController = TextEditingController();
+    final rating = 5.0.obs; // Default to 5 stars
+
+    Get.dialog(
+      AlertDialog(
+        title: Text('Rate Your Service', style: AppTextStyle.h3),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('How was your experience?', style: AppTextStyle.bodyMedium),
+            const SizedBox(height: 16),
+            Obx(
+              () => Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (index) {
+                  return IconButton(
+                    onPressed: () {
+                      rating.value = (index + 1).toDouble();
+                    },
+                    icon: Icon(
+                      index < rating.value ? Icons.star : Icons.star_border,
+                      color: Colors.amber,
+                      size: 35,
+                    ),
+                  );
+                }),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: commentTextController,
+              decoration: InputDecoration(
+                hintText: 'Add a comment (optional)',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).primaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () => Get.back(),
+            child: Text(
+              'Cancel',
+              style: AppTextStyle.buttonMedium.copyWith(color: Colors.white),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).primaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () async {
+              final success = await feedbackController.submitFeedback(
+                bookingId: booking.id!,
+                rating: rating.value,
+                comment: commentTextController.text,
+              );
+              if (success && mounted) {
+                Get.back(); // Close the service feedback dialog
+                _showTechnicianFeedbackDialog(context, booking);
+              }
+            },
+            child: Text(
+              'Submit',
+              style: AppTextStyle.buttonMedium.copyWith(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTechnicianFeedbackDialog(BuildContext context, Booking booking) {
+    if (booking.technician == null || booking.technician!.isEmpty) {
+      return; // Don't show if no technician is assigned
     }
 
-    final commentCtrl = TextEditingController();
+    final feedbackController = Get.find<FeedbackController>();
+    final commentTextController = TextEditingController();
+    final rating = 5.0.obs;
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext ctx) {
-        int serviceRating = 5;
-        int technicianRating = 5;
-
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: Text(
-                'Leave Feedback',
-                style: AppTextStyle.withColor(
-                  AppTextStyle.h3,
-                  Theme.of(context).textTheme.bodyLarge!.color!,
+    Get.dialog(
+      AlertDialog(
+        title: Text(
+          'Rate Technician: ${booking.technician}',
+          style: AppTextStyle.h3,
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'How was your experience with the technician?',
+              style: AppTextStyle.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            Obx(
+              () => Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (index) {
+                  return IconButton(
+                    onPressed: () {
+                      rating.value = (index + 1).toDouble();
+                    },
+                    icon: Icon(
+                      index < rating.value ? Icons.star : Icons.star_border,
+                      color: Colors.amber,
+                      size: 35,
+                    ),
+                  );
+                }),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: commentTextController,
+              decoration: InputDecoration(
+                hintText: 'Add a comment (optional)',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // Service Rating
-                    Text(
-                      'How was the service?',
-                      style: AppTextStyle.bodyMedium,
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(5, (i) {
-                        final idx = i + 1;
-                        return IconButton(
-                          onPressed: () => setState(() => serviceRating = idx),
-                          icon: Icon(
-                            idx <= serviceRating
-                                ? Icons.star
-                                : Icons.star_border,
-                            color: Colors.amber,
-                            size: 32,
-                          ),
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 20),
-                    // Technician Rating
-                    Text(
-                      'How was the technician?',
-                      style: AppTextStyle.bodyMedium,
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: List.generate(5, (i) {
-                        final idx = i + 1;
-                        return IconButton(
-                          onPressed: () =>
-                              setState(() => technicianRating = idx),
-                          icon: Icon(
-                            idx <= technicianRating
-                                ? Icons.star
-                                : Icons.star_border,
-                            color: Colors.amber,
-                            size: 32,
-                          ),
-                        );
-                      }),
-                    ),
-                    const SizedBox(height: 20),
-                    // Additional Comments
-                    TextField(
-                      controller: commentCtrl,
-                      maxLines: 4,
-                      decoration: const InputDecoration(
-                        hintText: 'Additional comments (optional)',
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                  ],
-                ),
+              maxLines: 3,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: const Text('Skip')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).primaryColor,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Get.back(),
-                  child: Text('Cancel', style: AppTextStyle.bodySmall),
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).primaryColor,
-                  ),
-                  onPressed: () async {
-                    // Show loading
-                    showDialog(
-                      context: context,
-                      barrierDismissible: false,
-                      builder: (_) =>
-                          const Center(child: CircularProgressIndicator()),
-                    );
-
-                    try {
-                      await bookingController.submitFeedback(
-                        bookingId: booking.id!,
-                        serviceRating: serviceRating,
-                        technicianRating: technicianRating,
-                        comment: commentCtrl.text.trim(),
-                      );
-
-                      Navigator.of(context).pop(); // close loading
-                      Get.back(); // close dialog
-                      Get.snackbar(
-                        'Thank you',
-                        'Feedback submitted successfully',
-                        snackPosition: SnackPosition.TOP,
-                        backgroundColor: Colors.black87,
-                        colorText: Colors.white,
-                        duration: const Duration(seconds: 3),
-                      );
-                      // Navigate to Completed tab
-                      tabController.animateTo(2);
-                    } catch (e, s) {
-                      print('Failed to submit feedback: $e');
-                      print(s);
-                      Navigator.of(context).pop(); // close loading
-                      Get.snackbar(
-                        'Error',
-                        'Failed to submit feedback: $e',
-                        snackPosition: SnackPosition.TOP,
-                        backgroundColor: Colors.red,
-                        colorText: Colors.white,
-                      );
-                      Get.back(); // close dialog on error
-                    }
-                  },
-                  child: Text(
-                    'Submit',
-                    style: AppTextStyle.bodySmall.copyWith(color: Colors.white),
-                  ),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    ).then((_) {
-      // This ensures the controller is disposed only once when the dialog is closed.
-      commentCtrl.dispose();
-    });
+            ),
+            onPressed: () {
+              feedbackController.submitTechnicianFeedback(
+                bookingId: booking.id!,
+                technicianName: booking.technician!,
+                rating: rating.value,
+                comment: commentTextController.text,
+              );
+              Get.back(); // Close the dialog
+            },
+            child: Text(
+              'Submit',
+              style: AppTextStyle.buttonMedium.copyWith(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   // ignore: unused_element
@@ -1146,11 +1054,7 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
           content: SizedBox(
             width: double.maxFinite, // Ensures the dialog is a reasonable width
             child: booking.id == null
-                ? ProgressTracker(
-                    currentProgress: booking.progress,
-                    onFeedbackPressed: () =>
-                        _showFeedbackDialog(context, booking),
-                  )
+                ? ProgressTracker(currentProgress: booking.progress)
                 : StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                     stream: FirebaseFirestore.instance
                         .collection('bookings')
@@ -1183,11 +1087,7 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
                               ),
                             ),
                           ),
-                          ProgressTracker(
-                            currentProgress: updated.progress,
-                            onFeedbackPressed: () =>
-                                _showFeedbackDialog(context, updated),
-                          ),
+                          ProgressTracker(currentProgress: updated.progress),
                         ],
                       );
                     },
@@ -1251,12 +1151,7 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
 // The main widget to build the progress timeline
 class ProgressTracker extends StatelessWidget {
   final BookingProgress currentProgress;
-  final VoidCallback? onFeedbackPressed;
-  const ProgressTracker({
-    super.key,
-    required this.currentProgress,
-    this.onFeedbackPressed,
-  });
+  const ProgressTracker({super.key, required this.currentProgress});
 
   @override
   Widget build(BuildContext context) {

@@ -5,6 +5,7 @@ import 'package:capstone/controllers/navigation_controller.dart';
 import 'package:capstone/controllers/product_controller.dart';
 import 'package:capstone/controllers/cart_controller.dart';
 import 'package:capstone/controllers/booking_controller.dart';
+import 'package:capstone/controllers/feedback_controller.dart';
 import 'package:capstone/controllers/notification_controller.dart';
 import 'package:capstone/controllers/user_controller.dart';
 import 'package:capstone/screens/splash_screen.dart';
@@ -90,6 +91,7 @@ Future<void> main() async {
   Get.put(NavigationController());
   Get.put(BookingController());
   Get.put(ProductController());
+  Get.put(FeedbackController());
   Get.put(NotificationController());
   Get.put(UserController());
   runApp(const MyApp());
