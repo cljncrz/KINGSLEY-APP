@@ -171,6 +171,10 @@ class _BookingRescheduledScreenState extends State<BookingRescheduledScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bookingStatus = widget.booking.status.toString().toLowerCase();
+    // A booking can only be rescheduled if its status contains 'pend'.
+    final canReschedule = bookingStatus.contains('pend');
+
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final appBar = AppBar(
       title: Text(
@@ -207,10 +211,6 @@ class _BookingRescheduledScreenState extends State<BookingRescheduledScreen> {
               // If booking has a different status (e.g. approved), we disable inputs and show a notice.
               Builder(
                 builder: (context) {
-                  final bookingStatus = widget.booking.status
-                      .toString()
-                      .toLowerCase();
-                  final canReschedule = bookingStatus == 'pending';
                   if (!canReschedule) {
                     final statusText = widget.booking.status.toString();
                     return Container(
@@ -271,21 +271,9 @@ class _BookingRescheduledScreenState extends State<BookingRescheduledScreen> {
                 ),
                 trailing: const Icon(Icons.calendar_today),
                 onTap: () {
-                  final bookingStatus = widget.booking.status
-                      .toString()
-                      .toLowerCase();
-                  final canReschedule = bookingStatus == 'pending';
-                  if (!canReschedule) {
-                    Get.snackbar(
-                      'Not allowed',
-                      'You cannot reschedule this booking at the moment.',
-                    );
-                    return;
-                  }
-                  _selectDate(context);
+                  if (canReschedule) _selectDate(context);
                 },
-                enabled:
-                    widget.booking.status.toString().toLowerCase() == 'pending',
+                enabled: canReschedule,
               ),
               const Divider(),
               ListTile(
@@ -301,21 +289,9 @@ class _BookingRescheduledScreenState extends State<BookingRescheduledScreen> {
                 ),
                 trailing: const Icon(Icons.access_time),
                 onTap: () {
-                  final bookingStatus = widget.booking.status
-                      .toString()
-                      .toLowerCase();
-                  final canReschedule = bookingStatus == 'pending';
-                  if (!canReschedule) {
-                    Get.snackbar(
-                      'Not allowed',
-                      'You cannot reschedule this booking at the moment.',
-                    );
-                    return;
-                  }
-                  _selectTime(context);
+                  if (canReschedule) _selectTime(context);
                 },
-                enabled:
-                    widget.booking.status.toString().toLowerCase() == 'pending',
+                enabled: canReschedule,
               ),
               const SizedBox(height: 24),
               Text('Reason for Rescheduling', style: AppTextStyle.bodyMedium),
@@ -338,6 +314,7 @@ class _BookingRescheduledScreenState extends State<BookingRescheduledScreen> {
                     borderSide: BorderSide.none,
                   ),
                 ),
+                enabled: canReschedule,
               ),
             ],
           ),
@@ -352,43 +329,41 @@ class _BookingRescheduledScreenState extends State<BookingRescheduledScreen> {
               width: double.infinity,
               height: 50.0,
               child: ElevatedButton(
-                onPressed: () async {
-                  final bookingStatus = widget.booking.status
-                      .toString()
-                      .toLowerCase();
-                  final canReschedule = bookingStatus == 'pending';
-                  if (!canReschedule) {
-                    Get.snackbar(
-                      'Not allowed',
-                      'This booking cannot be rescheduled because it is not pending approval.',
-                      snackPosition: SnackPosition.TOP,
-                    );
-                    return;
-                  }
-                  if (_selectedTimeSlot == null) {
-                    Get.snackbar(
-                      'Incomplete',
-                      'Please select a time slot.',
-                      snackPosition: SnackPosition.TOP,
-                    );
-                    return;
-                  }
-                  final bookingController = Get.find<BookingController>();
-                  await bookingController.rescheduleBooking(
-                    bookingId: widget.booking.id!,
-                    newDate: _selectedDate,
-                    newTime: _selectedTimeSlot!.format(context),
-                    reason: _rescheduleReasonController.text,
-                  );
-                  Get.offAll(
-                    () => BookingRescheduledSuccess(
-                      booking: widget.booking,
-                      newDate: _selectedDate,
-                      newTimeSlot: _selectedTimeSlot!,
-                      rescheduleReason: _rescheduleReasonController.text,
-                    ),
-                  );
-                },
+                onPressed: !canReschedule
+                    ? null
+                    : () async {
+                        if (!canReschedule) {
+                          Get.snackbar(
+                            'Not allowed',
+                            'This booking cannot be rescheduled because it is not pending approval.',
+                            snackPosition: SnackPosition.TOP,
+                          );
+                          return;
+                        }
+                        if (_selectedTimeSlot == null) {
+                          Get.snackbar(
+                            'Incomplete',
+                            'Please select a time slot.',
+                            snackPosition: SnackPosition.TOP,
+                          );
+                          return;
+                        }
+                        final bookingController = Get.find<BookingController>();
+                        await bookingController.rescheduleBooking(
+                          bookingId: widget.booking.id!,
+                          newDate: _selectedDate,
+                          newTime: _selectedTimeSlot!.format(context),
+                          reason: _rescheduleReasonController.text,
+                        );
+                        Get.offAll(
+                          () => BookingRescheduledSuccess(
+                            booking: widget.booking,
+                            newDate: _selectedDate,
+                            newTimeSlot: _selectedTimeSlot!,
+                            rescheduleReason: _rescheduleReasonController.text,
+                          ),
+                        );
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).primaryColor,
                   shape: RoundedRectangleBorder(
@@ -396,7 +371,7 @@ class _BookingRescheduledScreenState extends State<BookingRescheduledScreen> {
                   ),
                 ),
                 child: Text(
-                  'Confirm request Reschedule',
+                  'Confirm Reschedule',
                   style: AppTextStyle.buttonMedium.copyWith(
                     color: Colors.white,
                   ),

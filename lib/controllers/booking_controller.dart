@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 import 'dart:async';
 
 class BookingController extends GetxController {
@@ -189,7 +190,7 @@ class BookingController extends GetxController {
     }
   }
 
-  /// Submits a request to reschedule an existing booking.
+  /// Reschedules an existing booking.
   Future<void> rescheduleBooking({
     required String bookingId,
     required DateTime newDate,
@@ -202,63 +203,59 @@ class BookingController extends GetxController {
       return;
     }
     final bookingRef = _db.collection('bookings').doc(bookingId);
-    // Use a subcollection under the booking to keep reschedule requests grouped and auditable.
-    final rescheduleRef = bookingRef.collection('rescheduleRequests').doc();
 
     try {
-      // Pre-check: read booking once to validate ownership and status so we can
-      // show a clearer diagnostic if permissions fail. The security rules will
-      // still be enforced on the transaction that writes the request.
-      final bookingSnapDirect = await bookingRef.get();
-      if (!bookingSnapDirect.exists) {
-        Get.snackbar("Error", "Booking not found.");
-        return;
-      }
-
-      final bookingData = bookingSnapDirect.data();
-      final ownerId = bookingData?['userId']?.toString();
-      final currentStatus =
-          bookingData?['status']?.toString().toLowerCase() ?? '';
-
-      // Quick client-side checks before attempting the write.
-      if (ownerId != user.uid) {
-        Get.snackbar("Not allowed", "You are not the owner of this booking.");
-        return;
-      }
-
-      if (!currentStatus.contains('pend')) {
-        Get.snackbar(
-          "Not allowed",
-          "You can only request a reschedule while the booking is pending approval.",
-        );
-        return;
-      }
-
-      // Proceed to create the reschedule request inside a transaction. We avoid
-      // updating the booking document here because that requires admin privileges.
       await _db.runTransaction((tx) async {
-        tx.set(rescheduleRef, {
-          'bookingId': bookingId,
-          'userId': user.uid,
-          'newDate': Timestamp.fromDate(newDate),
-          'newTime': newTime,
+        final bookingSnap = await tx.get(bookingRef);
+
+        if (!bookingSnap.exists) {
+          throw FirebaseException(
+            plugin: 'firestore',
+            code: 'not-found',
+            message: 'Booking not found.',
+          );
+        }
+
+        final bookingData = bookingSnap.data();
+        final ownerId = bookingData?['userId']?.toString();
+        final currentStatus =
+            bookingData?['status']?.toString().toLowerCase() ?? '';
+
+        // These checks mirror the security rules for a better user experience.
+        if (ownerId != user.uid) {
+          throw FirebaseException(
+            plugin: 'firestore',
+            code: 'permission-denied',
+            message: 'You are not the owner of this booking.',
+          );
+        }
+
+        if (!currentStatus.contains('pend')) {
+          throw FirebaseException(
+            plugin: 'firestore',
+            code: 'failed-precondition',
+            message: 'Booking is not in a pending state.',
+          );
+        }
+
+        // Update the booking directly with the new information and status.
+        tx.update(bookingRef, {
+          'bookingDate': DateFormat('yyyy-MM-dd').format(newDate),
+          'bookingTime': newTime,
           'reason': reason,
-          'status': 'pending', // Admin will review this request.
-          'createdAt': FieldValue.serverTimestamp(),
+          'status': 'Rescheduled',
+          'updatedAt': FieldValue.serverTimestamp(),
         });
       });
-      // Success: UI will navigate to success screen, so no success snackbar here.
     } catch (e) {
       // Surface FirebaseException details to make debugging easier.
       if (e is FirebaseException) {
         debugPrint('FirebaseException (${e.code}): ${e.message}');
-        if (e.code == 'permission-denied') {
-          Get.snackbar(
-            "Permission denied",
-            "You don't have permission to perform this action. If you believe this is an error, contact support.",
-          );
-          return;
-        }
+        Get.snackbar(
+          "Permission denied",
+          "You don't have permission to perform this action. This may be because the booking is no longer pending. Please refresh.",
+        );
+        return;
       }
 
       Get.snackbar("Error", "Failed to request reschedule. Please try again.");

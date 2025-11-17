@@ -4,87 +4,12 @@ import 'package:capstone/utils/app_textstyles.dart';
 import 'package:flutter/material.dart';
 import 'package:capstone/controllers/custom_bottom_navbar.dart';
 import 'package:get/get.dart';
-import 'package:capstone/view/widgets/booking_rescheduled_screen.dart';
 import 'package:capstone/view/widgets/booking_cancel_screen.dart';
 
 class ViewDetailsScreen extends StatelessWidget {
   final Booking booking;
 
   const ViewDetailsScreen({super.key, required this.booking});
-
-  void _showRescheduleConfirmationDialog(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    Get.dialog(
-      AlertDialog(
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        contentPadding: const EdgeInsets.all(24),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(100),
-              ),
-              child: Icon(
-                Icons.edit_calendar_outlined,
-                color: Theme.of(context).primaryColor,
-                size: 32,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Please be advised that rescheduling the booking immediately, as no changes can be accommodated after a 24-hour period from the time of the original reservation.',
-              textAlign: TextAlign.center,
-              style: AppTextStyle.withColor(
-                AppTextStyle.bodySmall,
-                isDark ? Colors.grey[400]! : Colors.grey[600]!,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => Get.back(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF7F1618),
-                    ),
-                    child: Text(
-                      'Cancel',
-                      style: AppTextStyle.buttonMedium.copyWith(
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => Get.to(
-                      () => BookingRescheduledScreen(booking: booking),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF7F1618),
-                    ),
-                    child: Text(
-                      'Proceed',
-                      style: AppTextStyle.buttonMedium.copyWith(
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   void _showCancelConfirmationDialog(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -284,30 +209,9 @@ class ViewDetailsScreen extends StatelessWidget {
               children: [
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () => _showRescheduleConfirmationDialog(context),
+                    onPressed: () => _showCancelConfirmationDialog(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).primaryColor,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(
-                      'Reschedule',
-                      style: AppTextStyle.withColor(
-                        AppTextStyle.buttonMedium,
-                        Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => _showCancelConfirmationDialog(context),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF7F1618),
-                      side: BorderSide(color: Theme.of(context).primaryColor),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -317,7 +221,7 @@ class ViewDetailsScreen extends StatelessWidget {
                       'Cancel Booking',
                       style: AppTextStyle.withColor(
                         AppTextStyle.buttonMedium,
-                        Theme.of(context).primaryColor,
+                        Colors.white,
                       ),
                     ),
                   ),

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:capstone/controllers/damage_report_controller.dart';
 import 'package:capstone/utils/app_textstyles.dart';
 import 'package:capstone/utils/custom_textfield.dart';
 import 'package:capstone/controllers/custom_bottom_navbar.dart';
@@ -17,6 +18,7 @@ class DamageReportScreen extends StatefulWidget {
 }
 
 class _DamageReportScreenState extends State<DamageReportScreen> {
+  final DamageReportController _damageReportController = Get.find();
   final _formKey = GlobalKey<FormState>();
   final _dateController = TextEditingController();
   final _locationController = TextEditingController();
@@ -48,7 +50,7 @@ class _DamageReportScreenState extends State<DamageReportScreen> {
     }
   }
 
-  Future<void> _pickImages() async {
+  Future<void> _pickImagesFromGallery() async {
     final int remainingImages = 10 - _images.length;
     if (remainingImages <= 0) {
       Get.snackbar(
@@ -79,37 +81,76 @@ class _DamageReportScreenState extends State<DamageReportScreen> {
     }
   }
 
-  void _submitReport() {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    if (_formKey.currentState!.validate()) {
-      if (_images.length < 5) {
-        Get.snackbar(
-          'Incomplete Report',
-          'Please attach at least 5 photos.',
-          titleText: Text(
-            'Incomplete Report',
-            style: AppTextStyle.withColor(
-              AppTextStyle.h3,
-              isDark ? const Color(0xFF7F1618) : Colors.white,
-            ),
-          ),
-          messageText: Text(
-            'Please attach at least 5 photos.',
-            style: AppTextStyle.withColor(
-              AppTextStyle.bodySmall,
-              isDark ? const Color(0xFF7F1618) : Colors.white,
-            ),
-          ),
-          snackPosition: SnackPosition.TOP,
-          backgroundColor: isDark ? Colors.white : const Color(0xFF7F1618),
-          colorText: isDark ? Colors.white : const Color(0xFF7F1618),
-        );
-        return;
+  Future<void> _pickImageFromCamera() async {
+    if (_images.length >= 10) {
+      Get.snackbar(
+        'Limit Reached',
+        'You can only upload a maximum of 10 photos.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.camera,
+        imageQuality: 80,
+      );
+
+      if (pickedFile != null) {
+        setState(() {
+          _images.add(pickedFile);
+        });
       }
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Could not take photo: $e',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+  }
 
-      // TODO: Implement the logic to send the report to the admin.
-      // This would involve uploading images and sending form data to a server.
+  void _showImageSourceActionSheet() {
+    Get.bottomSheet(
+      Wrap(
+        children: <Widget>[
+          ListTile(
+            leading: const Icon(Icons.photo_library),
+            title: const Text('Photo Library'),
+            onTap: () {
+              Get.back();
+              _pickImagesFromGallery();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.photo_camera),
+            title: const Text('Camera'),
+            onTap: () {
+              Get.back();
+              _pickImageFromCamera();
+            },
+          ),
+        ],
+      ),
+      backgroundColor: Theme.of(context).canvasColor,
+    );
+  }
 
+  void _submitReport() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    final success = await _damageReportController.submitReport(
+      date: _dateController.text,
+      location: _locationController.text,
+      contact: _contactController.text,
+      description: _descriptionController.text,
+      images: _images,
+    );
+
+    if (success) {
       Get.dialog(
         AlertDialog(
           title: Text('Report Submitted', style: AppTextStyle.h3),
@@ -155,8 +196,9 @@ class _DamageReportScreenState extends State<DamageReportScreen> {
       ),
       body: user == null
           ? _buildGuestView(context)
-          : _buildLoggedInView(context),
-      bottomNavigationBar: const CustomBottomNavbar(),
+          : _buildLoggedInView(
+              context,
+            ), // The CustomBottomNavbar is now inside _buildLoggedInView
     );
   }
 
@@ -216,121 +258,137 @@ class _DamageReportScreenState extends State<DamageReportScreen> {
   }
 
   Widget _buildLoggedInView(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16.0),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Please provide the details of the incident.',
-              style: AppTextStyle.bodyMedium,
-            ),
-            const SizedBox(height: 24),
-            _buildPhotoAttachmentSection(),
-            const SizedBox(height: 24),
-            TextFormField(
-              style: AppTextStyle.bodyMedium,
-              controller: _dateController,
-              decoration: InputDecoration(
-                labelText: 'Date',
-                labelStyle: AppTextStyle.bodyMedium,
-                prefixIcon: const Icon(Icons.calendar_today),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: Theme.of(context).primaryColor,
-                    width: 2.0,
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Please provide the details of the incident.',
+                    style: AppTextStyle.bodyMedium,
                   ),
-                ),
+                  const SizedBox(height: 24),
+                  _buildPhotoAttachmentSection(),
+                  const SizedBox(height: 24),
+                  TextFormField(
+                    style: AppTextStyle.bodyMedium,
+                    controller: _dateController,
+                    decoration: InputDecoration(
+                      labelText: 'Date',
+                      labelStyle: AppTextStyle.bodyMedium,
+                      prefixIcon: const Icon(Icons.calendar_today),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).primaryColor,
+                          width: 2.0,
+                        ),
+                      ),
+                    ),
+                    readOnly: true,
+                    onTap: _selectDate,
+                    validator: (value) =>
+                        value!.isEmpty ? 'Please select a date' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _locationController,
+                    style: AppTextStyle.bodyMedium,
+                    decoration: InputDecoration(
+                      labelText: 'Location',
+                      labelStyle: AppTextStyle.bodyMedium,
+                      prefixIcon: const Icon(Icons.location_on_outlined),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).primaryColor,
+                          width: 2.0,
+                        ),
+                      ),
+                    ),
+                    validator: (value) =>
+                        value!.isEmpty ? 'Please enter the location' : null,
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _contactController,
+                    style: AppTextStyle.bodyMedium,
+                    keyboardType: TextInputType.phone,
+                    decoration: InputDecoration(
+                      labelText: 'Contact Number',
+                      labelStyle: AppTextStyle.bodyMedium,
+                      prefixIcon: const Icon(Icons.phone_outlined),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                          color: Theme.of(context).primaryColor,
+                          width: 2.0,
+                        ),
+                      ),
+                    ),
+                    validator: (value) => value!.isEmpty
+                        ? 'Please enter your contact number'
+                        : null,
+                  ),
+                  const SizedBox(height: 16),
+                  CustomTextfield(
+                    label: 'Description of Damage',
+                    prefixIcon: Icons.description_outlined,
+                    controller: _descriptionController,
+                    maxLines: 5,
+                    validator: (value) =>
+                        value!.isEmpty ? 'Please describe the damage' : null,
+                  ),
+                  const SizedBox(height: 32),
+                  SizedBox(
+                    width: double.infinity,
+                    child: Obx(
+                      () => ElevatedButton(
+                        onPressed: _damageReportController.isLoading.value
+                            ? null
+                            : _submitReport,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Theme.of(context).primaryColor,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                        child: _damageReportController.isLoading.value
+                            ? const CircularProgressIndicator(
+                                color: Colors.white,
+                              )
+                            : Text(
+                                'Submit Report',
+                                style: AppTextStyle.withColor(
+                                  AppTextStyle.buttonMedium,
+                                  Colors.white,
+                                ),
+                              ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              readOnly: true,
-              onTap: _selectDate,
-              validator: (value) =>
-                  value!.isEmpty ? 'Please select a date' : null,
             ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _locationController,
-              style: AppTextStyle.bodyMedium,
-              decoration: InputDecoration(
-                labelText: 'Location',
-                labelStyle: AppTextStyle.bodyMedium,
-                prefixIcon: const Icon(Icons.location_on_outlined),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: Theme.of(context).primaryColor,
-                    width: 2.0,
-                  ),
-                ),
-              ),
-              validator: (value) =>
-                  value!.isEmpty ? 'Please enter the location' : null,
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _contactController,
-              style: AppTextStyle.bodyMedium,
-              keyboardType: TextInputType.phone,
-              decoration: InputDecoration(
-                labelText: 'Contact Number',
-                labelStyle: AppTextStyle.bodyMedium,
-                prefixIcon: const Icon(Icons.phone_outlined),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(
-                    color: Theme.of(context).primaryColor,
-                    width: 2.0,
-                  ),
-                ),
-              ),
-              validator: (value) =>
-                  value!.isEmpty ? 'Please enter your contact number' : null,
-            ),
-            const SizedBox(height: 16),
-            CustomTextfield(
-              label: 'Description of Damage',
-              prefixIcon: Icons.description_outlined,
-              controller: _descriptionController,
-              maxLines: 5,
-              validator: (value) =>
-                  value!.isEmpty ? 'Please describe the damage' : null,
-            ),
-            const SizedBox(height: 32),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _submitReport,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: Text(
-                  'Submit Report',
-                  style: AppTextStyle.withColor(
-                    AppTextStyle.buttonMedium,
-                    Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
-      ),
+        const CustomBottomNavbar(),
+      ],
     );
   }
 
@@ -362,7 +420,7 @@ class _DamageReportScreenState extends State<DamageReportScreen> {
 
   Widget _buildAddPhotoButton() {
     return GestureDetector(
-      onTap: _pickImages,
+      onTap: _showImageSourceActionSheet,
       child: Container(
         decoration: BoxDecoration(
           color: Theme.of(context).brightness == Brightness.dark

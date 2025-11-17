@@ -8,6 +8,7 @@ import 'package:capstone/controllers/booking_controller.dart';
 import 'package:capstone/controllers/feedback_controller.dart';
 import 'package:capstone/controllers/notification_controller.dart';
 import 'package:capstone/controllers/user_controller.dart';
+import 'package:capstone/controllers/damage_report_controller.dart';
 import 'package:capstone/screens/splash_screen.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -68,6 +69,13 @@ Future<void> main() async {
   // Set the background messaging handler
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
+  // Add this block to print the App Check debug token in debug mode.
+  if (kDebugMode) {
+    FirebaseAppCheck.instance.onTokenChange.listen((token) {
+      debugPrint('App Check debug token: $token');
+    });
+  }
+
   try {
     // Initialize Firebase App Check
     await FirebaseAppCheck.instance.activate(
@@ -94,6 +102,7 @@ Future<void> main() async {
   Get.put(FeedbackController());
   Get.put(NotificationController());
   Get.put(UserController());
+  Get.put(DamageReportController());
   runApp(const MyApp());
 }
 

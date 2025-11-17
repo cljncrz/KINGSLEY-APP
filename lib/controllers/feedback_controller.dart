@@ -6,6 +6,7 @@ import 'package:get/get.dart';
 
 import 'package:capstone/models/service_feedback.dart';
 import 'package:capstone/models/technician_feedback.dart';
+import 'package:capstone/controllers/notification_controller.dart';
 
 class FeedbackController extends GetxController {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -87,6 +88,13 @@ class FeedbackController extends GetxController {
         'feedbackCreatedAt': FieldValue.serverTimestamp(),
       });
 
+      // Create a notification for the user
+      await Get.find<NotificationController>().createNotification(
+        title: 'Feedback Received!',
+        body: 'Thank you for sharing your feedback with us.',
+        bookingId: bookingId,
+      );
+
       // Note: If you need to update the booking document to mark that feedback
       // has been submitted, it's best to do this via a Cloud Function triggered
       // by the creation of a new feedback document. This is more secure than
@@ -135,6 +143,13 @@ class FeedbackController extends GetxController {
 
       // Add to the 'technician_feedbacks' collection
       await _db.collection('technician_feedbacks').add(feedback.toJson());
+
+      // Create a notification for the user
+      await Get.find<NotificationController>().createNotification(
+        title: 'Technician Feedback Received!',
+        body: 'Thank you for rating ${technicianName}.',
+        bookingId: bookingId,
+      );
 
       Get.snackbar(
         "Success",
