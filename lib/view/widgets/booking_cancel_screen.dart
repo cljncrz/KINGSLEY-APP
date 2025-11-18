@@ -1,8 +1,8 @@
 import 'package:capstone/models/booking.dart';
 import 'package:capstone/controllers/product_controller.dart';
+import 'package:capstone/controllers/booking_controller.dart';
 import 'package:capstone/utils/app_textstyles.dart';
 import 'package:capstone/view/widgets/booking_cancel_success_screen.dart';
-import 'package:capstone/view/widgets/booking_rescheduled_screen.dart';
 import 'package:capstone/controllers/custom_bottom_navbar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -21,14 +21,12 @@ class _CancelBookingScreenState extends State<CancelBookingScreen> {
 
   final List<String> _cancellationReasons = [
     'I have a schedule conflict.',
-    'I found a better offer elsewhere.',
-    'I am not satisfied with the service details.',
     'I booked it by mistake.',
+    'I want to reschedule for a later date.',
+    'I have other reasons.',
   ];
 
   void _showCancelConfirmationDialog(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     Get.dialog(
       AlertDialog(
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -58,22 +56,35 @@ class _CancelBookingScreenState extends State<CancelBookingScreen> {
                 Theme.of(context).textTheme.bodyLarge!.color!,
               ),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'You can always reschedule it.',
-              textAlign: TextAlign.center,
-              style: AppTextStyle.withColor(
-                AppTextStyle.bodySmall,
-                isDark ? Colors.grey[400]! : Colors.grey[600]!,
-              ),
-            ),
+
             const SizedBox(height: 24),
             Row(
               children: [
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () {
-                      // TODO: Add logic to actually cancel the booking in the backend
+                    onPressed: () async {
+                      final bookingController = Get.find<BookingController>();
+
+                      // Close the dialog first
+                      Get.back();
+
+                      // Show loading indicator
+                      Get.dialog(
+                        const Center(child: CircularProgressIndicator()),
+                        barrierDismissible: false,
+                      );
+
+                      // Cancel the booking
+                      await bookingController.cancelBooking(
+                        bookingId: widget.booking.id!,
+                        reason: _cancellationReasons[_selectedReason ?? 0],
+                        comment: _commentController.text.trim(),
+                      );
+
+                      // Close loading indicator
+                      Get.back();
+
+                      // Navigate to success screen
                       Get.to(
                         () => CancelSuccessScreen(booking: widget.booking),
                       );
@@ -89,29 +100,6 @@ class _CancelBookingScreenState extends State<CancelBookingScreen> {
                       'Yes, Cancel',
                       style: AppTextStyle.bodySmall.copyWith(
                         color: Colors.white,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Get.to(
-                      () => BookingRescheduledScreen(booking: widget.booking),
-                    ),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      side: BorderSide(
-                        color: isDark ? Colors.white70 : Colors.black12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                    child: Text(
-                      'Reschedule',
-                      style: AppTextStyle.bodySmall.copyWith(
-                        color: Theme.of(context).textTheme.bodySmall!.color,
                       ),
                     ),
                   ),

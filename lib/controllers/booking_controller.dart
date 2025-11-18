@@ -190,6 +190,121 @@ class BookingController extends GetxController {
     }
   }
 
+  /// Cancels an existing booking.
+  Future<void> cancelBooking({
+    required String bookingId,
+    required String reason,
+    String? comment,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      Get.snackbar("Error", "You must be logged in to cancel a booking.");
+      return;
+    }
+    final bookingRef = _db.collection('bookings').doc(bookingId);
+
+    try {
+      await _db.runTransaction((tx) async {
+        final bookingSnap = await tx.get(bookingRef);
+
+        if (!bookingSnap.exists) {
+          throw FirebaseException(
+            plugin: 'firestore',
+            code: 'not-found',
+            message: 'Booking not found.',
+          );
+        }
+
+        final bookingData = bookingSnap.data();
+        final ownerId = bookingData?['userId']?.toString();
+        final currentStatus =
+            bookingData?['status']?.toString().toLowerCase() ?? '';
+
+        // Verify the user owns this booking
+        if (ownerId != user.uid) {
+          throw FirebaseException(
+            plugin: 'firestore',
+            code: 'permission-denied',
+            message: 'You are not the owner of this booking.',
+          );
+        }
+
+        // Only allow cancellation of pending bookings
+        if (!currentStatus.contains('pend')) {
+          throw FirebaseException(
+            plugin: 'firestore',
+            code: 'failed-precondition',
+            message: 'Only pending bookings can be cancelled.',
+          );
+        }
+
+        // Update the booking with cancellation details
+        tx.update(bookingRef, {
+          'status': 'Cancelled',
+          'cancellationReason': reason,
+          'cancellationComment': comment ?? '',
+          'cancelledAt': FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      });
+
+      // Create cancellation notification
+      await _createCancellationNotification(bookingId);
+
+      Get.snackbar(
+        "Success",
+        "Your booking has been cancelled.",
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+      );
+    } catch (e) {
+      if (e is FirebaseException) {
+        debugPrint('FirebaseException (${e.code}): ${e.message}');
+        Get.snackbar(
+          "Error",
+          e.message ?? "Failed to cancel booking.",
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+        return;
+      }
+
+      Get.snackbar(
+        "Error",
+        "Failed to cancel booking. Please try again.",
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      debugPrint("Error cancelling booking: $e");
+    }
+  }
+
+  /// Creates a notification for booking cancellation.
+  Future<void> _createCancellationNotification(String bookingId) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    try {
+      await _db
+          .collection('users')
+          .doc(user.uid)
+          .collection('notifications')
+          .add({
+            'title': 'Booking Cancelled',
+            'body': 'Your booking has been successfully cancelled.',
+            'createdAt': FieldValue.serverTimestamp(),
+            'isRead': false,
+            'type': 'booking_cancelled',
+            'bookingId': bookingId,
+          });
+    } catch (e) {
+      debugPrint("Error creating cancellation notification: $e");
+    }
+  }
+
   /// Reschedules an existing booking.
   Future<void> rescheduleBooking({
     required String bookingId,

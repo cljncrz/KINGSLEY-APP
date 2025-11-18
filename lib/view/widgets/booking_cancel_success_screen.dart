@@ -1,8 +1,10 @@
 import 'package:capstone/controllers/navigation_controller.dart';
 import 'package:capstone/models/booking.dart';
+import 'package:capstone/models/product.dart';
 import 'package:capstone/utils/app_textstyles.dart';
 import 'package:capstone/view/home/main_screen.dart';
 import 'package:capstone/controllers/custom_bottom_navbar.dart';
+import 'package:capstone/view/home/notification_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -10,6 +12,48 @@ class CancelSuccessScreen extends StatelessWidget {
   final Booking booking;
 
   const CancelSuccessScreen({super.key, required this.booking});
+
+  /// Helper method to get the image URL for the first booked service
+  String _getServiceImageUrl() {
+    if (booking.serviceNames.isEmpty) {
+      return 'assets/wash_services/motorcycle_wash_armor_all.png'; // Default fallback
+    }
+
+    // Get the first service name from the booking
+    final firstServiceName = booking.serviceNames.first;
+
+    // Combine all products (wash services + detailing services) for searching
+    final allProducts = [...products, ...detailingservices];
+
+    // Search for matching product by name
+    // First try exact match, then try partial match (contains)
+    Product? matchedProduct = allProducts.firstWhere(
+      (p) => p.name.toLowerCase() == firstServiceName.toLowerCase(),
+      orElse: () => Product(
+        name: '',
+        category: '',
+        imageUrl: '',
+        subTitle: '',
+        description: '',
+      ),
+    );
+
+    // If exact match not found, try partial match
+    if (matchedProduct.imageUrl.isEmpty) {
+      matchedProduct = allProducts.firstWhere(
+        (p) => firstServiceName.toLowerCase().contains(p.name.toLowerCase()),
+        orElse: () => Product(
+          name: 'Default',
+          category: 'Default',
+          imageUrl: 'assets/wash_services/motorcycle_wash_armor_all.png',
+          subTitle: '',
+          description: '',
+        ),
+      );
+    }
+
+    return matchedProduct.imageUrl;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,11 +74,9 @@ class CancelSuccessScreen extends StatelessWidget {
           IconButton(
             icon: Icon(
               Icons.notifications_none,
-              color: isDark ? Colors.white : Colors.black,
+              color: Theme.of(context).primaryColor,
             ),
-            onPressed: () {
-              // TODO: Handle notification icon press
-            },
+            onPressed: () => Get.to(() => const NotificationScreen()),
           ),
         ],
       ),
@@ -74,7 +116,7 @@ class CancelSuccessScreen extends StatelessWidget {
               RichText(
                 textAlign: TextAlign.center,
                 text: TextSpan(
-                  style: AppTextStyle.bodyMedium.copyWith(
+                  style: AppTextStyle.bodySmall.copyWith(
                     color: Theme.of(context).textTheme.bodyLarge!.color,
                     height: 1.5,
                   ),
@@ -85,10 +127,6 @@ class CancelSuccessScreen extends StatelessWidget {
                     TextSpan(
                       text: booking.serviceNames.join(', '),
                       style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    const TextSpan(
-                      text:
-                          '. We have sent a confirmation to your registered email.',
                     ),
                   ],
                 ),
@@ -111,7 +149,7 @@ class CancelSuccessScreen extends StatelessWidget {
                     ClipRRect(
                       borderRadius: BorderRadius.circular(4.0),
                       child: Image.asset(
-                        'assets/wash_services/motorcycle_wash_armor_all.png', // Placeholder
+                        _getServiceImageUrl(),
                         width: 80,
                         height: 80,
                         fit: BoxFit.cover,

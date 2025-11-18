@@ -147,7 +147,7 @@ class FeedbackController extends GetxController {
       // Create a notification for the user
       await Get.find<NotificationController>().createNotification(
         title: 'Technician Feedback Received!',
-        body: 'Thank you for rating ${technicianName}.',
+        body: 'Thank you for rating $technicianName.',
         bookingId: bookingId,
       );
 

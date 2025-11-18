@@ -1,6 +1,7 @@
 import 'package:capstone/utils/app_textstyles.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:capstone/controllers/custom_bottom_navbar.dart';
 
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
@@ -62,6 +63,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
           ],
         ),
       ),
+      bottomNavigationBar: const CustomBottomNavbar(),
     );
   }
 

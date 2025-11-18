@@ -8,6 +8,8 @@ class TechnicianFeedback {
   final double rating;
   final String? comment;
   final DateTime createdAt;
+  final String? adminReply;
+  final DateTime? adminReplyDate;
 
   TechnicianFeedback({
     this.id,
@@ -17,6 +19,8 @@ class TechnicianFeedback {
     required this.rating,
     this.comment,
     required this.createdAt,
+    this.adminReply,
+    this.adminReplyDate,
   });
 
   factory TechnicianFeedback.fromSnapshot(DocumentSnapshot doc) {
@@ -32,6 +36,8 @@ class TechnicianFeedback {
           (data['createdAt'] as Timestamp?)?.toDate() ??
           (data['feedbackCreatedAt'] as Timestamp?)?.toDate() ??
           DateTime.now(),
+      adminReply: data['adminReply'],
+      adminReplyDate: (data['adminReplyDate'] as Timestamp?)?.toDate(),
     );
   }
   Map<String, dynamic> toJson() {

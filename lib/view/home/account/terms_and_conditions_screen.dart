@@ -1,6 +1,7 @@
 import 'package:capstone/utils/app_textstyles.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:capstone/controllers/custom_bottom_navbar.dart';
 
 class TermsAndConditionsScreen extends StatelessWidget {
   const TermsAndConditionsScreen({super.key});
@@ -95,6 +96,7 @@ class TermsAndConditionsScreen extends StatelessWidget {
           ],
         ),
       ),
+      bottomNavigationBar: const CustomBottomNavbar(),
     );
   }
 

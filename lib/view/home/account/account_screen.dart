@@ -3,11 +3,13 @@ import 'package:capstone/controllers/navigation_controller.dart';
 import 'package:capstone/view/home/account/about_kingsley_carwash_screen.dart';
 import 'package:capstone/controllers/user_controller.dart'; // Import UserController
 import 'package:capstone/utils/app_textstyles.dart';
+import 'package:capstone/view/home/account/damage_reports.dart';
 import 'package:capstone/view/home/account/privacy_policy_screen.dart';
 import 'package:capstone/view/home/account/terms_and_conditions_screen.dart';
 import 'package:capstone/view/home/account/edit_profile_screen.dart';
 import 'package:capstone/view/home/account/faqs_screen.dart';
 import 'package:capstone/view/home/account/setting_screen.dart';
+import 'package:capstone/view/home/account/my_reviews_screen.dart';
 import 'package:capstone/screens/signin_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -227,6 +229,8 @@ Widget _buildMenuSection(BuildContext context) {
   final isDark = Theme.of(context).brightness == Brightness.dark;
   final menuItems = [
     {'icon': Icons.info_outline, 'title': 'About Kingsley Carwash'},
+    {'icon': Icons.rate_review_outlined, 'title': 'My Reviews'},
+    {'icon': Icons.report_problem_outlined, 'title': 'Damage Reports'},
     {'icon': Icons.message_sharp, 'title': '(FAQs)'},
     {'icon': Icons.policy_outlined, 'title': 'Privacy Policy'},
     {'icon': Icons.gavel_outlined, 'title': 'Terms & Conditions'},
@@ -273,8 +277,10 @@ Widget _buildMenuSection(BuildContext context) {
                 _showLogOutDialog(context);
               } else if (item['title'] == 'About Kingsley Carwash') {
                 Get.to(() => const AboutKingsleyCarwashScreen());
-              } else if (item['title'] == 'Booking History') {
-                // navigation to my booking history
+              } else if (item['title'] == 'My Reviews') {
+                Get.to(() => const MyReviewsScreen());
+              } else if (item['title'] == 'Damage Reports') {
+                Get.to(() => const DamageReports());
               } else if (item['title'] == '(FAQs)') {
                 Get.to(() => const FaqsScreen());
               } else if (item['title'] == 'Privacy Policy') {

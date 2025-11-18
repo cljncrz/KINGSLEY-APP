@@ -256,8 +256,8 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
           final completed = allBookings
               .where(
                 (b) =>
-                    _isCompletedStatus(b.status) &&
-                    !_isCancelledStatus(b.status),
+                    _isCompletedStatus(b.status) ||
+                    _isCancelledStatus(b.status),
               )
               .toList();
 
