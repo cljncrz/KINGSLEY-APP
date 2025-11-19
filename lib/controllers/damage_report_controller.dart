@@ -71,6 +71,21 @@ class DamageReportController extends GetxController {
     }
   }
 
+  Stream<QuerySnapshot> getUserReports() {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw Exception('User must be logged in');
+    }
+    // Note: This query requires a composite index on userId and createdAt
+    // Create the index at: Firebase Console > Firestore > Indexes
+    // Or click the link in the error message to auto-create it
+    return _db
+        .collection('damage_reports')
+        .where('userId', isEqualTo: user.uid)
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+  }
+
   Future<List<String>> _uploadImages(List<XFile> images, String userId) async {
     final List<String> imageUrls = [];
     for (var image in images) {
