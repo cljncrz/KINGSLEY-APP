@@ -12,14 +12,27 @@ class EnableLocationScreen extends StatelessWidget {
   }
 
   Future<void> _requestLocationPermission() async {
+    // First request when in use permission
     final status = await Permission.locationWhenInUse.request();
 
     if (status.isGranted) {
-      Get.snackbar(
-        'Success',
-        'Location access granted.',
-        snackPosition: SnackPosition.TOP,
-      );
+      // Then request background location (always allow)
+      final backgroundStatus = await Permission.locationAlways.request();
+
+      if (backgroundStatus.isGranted) {
+        Get.snackbar(
+          'Success',
+          'Location access granted for background geofencing.',
+          snackPosition: SnackPosition.TOP,
+        );
+      } else {
+        Get.snackbar(
+          'Partial Access',
+          'Location granted but background access limited. Geofencing will work when app is open.',
+          snackPosition: SnackPosition.TOP,
+          duration: const Duration(seconds: 4),
+        );
+      }
     } else if (status.isDenied) {
       Get.snackbar(
         'Info',
@@ -67,11 +80,20 @@ class EnableLocationScreen extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               Text(
-                'We need your location to find nearby car wash branches and provide you with accurate service times.',
+                'We need your location to find nearby car wash branches and automatically notify our team when you arrive through geofencing.',
                 textAlign: TextAlign.center,
                 style: AppTextStyle.withColor(
                   AppTextStyle.bodySmall,
                   isDark ? Colors.grey[400]! : Colors.grey[600]!,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'For best experience, please select "Allow all the time" when prompted for location access.',
+                textAlign: TextAlign.center,
+                style: AppTextStyle.withColor(
+                  AppTextStyle.bodySmall.copyWith(fontStyle: FontStyle.italic),
+                  isDark ? Colors.amber[300]! : Colors.orange[700]!,
                 ),
               ),
               const SizedBox(height: 40),

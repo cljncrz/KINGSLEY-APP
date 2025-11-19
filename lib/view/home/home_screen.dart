@@ -1,7 +1,7 @@
 import 'package:capstone/controllers/theme_controller.dart';
 import 'package:capstone/controllers/notification_controller.dart';
 import 'package:capstone/utils/app_textstyles.dart';
-import 'package:capstone/view/home/chatbot_screen.dart';
+import 'package:capstone/view/home/chat_screen.dart';
 import 'package:capstone/view/home/cart_screen.dart';
 import 'package:capstone/view/home/notification_screen.dart';
 import 'package:capstone/view/home/category.dart';

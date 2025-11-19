@@ -1,6 +1,7 @@
 import 'package:capstone/controllers/auth_controller.dart';
 import 'package:capstone/services/local_notification_service.dart';
 import 'package:capstone/services/fcm-service.dart';
+import 'package:capstone/services/geofencing_service.dart';
 import 'package:capstone/controllers/navigation_controller.dart';
 import 'package:capstone/controllers/product_controller.dart';
 import 'package:capstone/controllers/cart_controller.dart';
@@ -103,6 +104,10 @@ Future<void> main() async {
   Get.put(NotificationController());
   Get.put(UserController());
   Get.put(DamageReportController());
+
+  // Initialize Geofencing Service for background location monitoring
+  Get.put(GeofencingService());
+
   runApp(const MyApp());
 }
 

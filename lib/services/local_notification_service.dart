@@ -58,3 +58,53 @@ Future<void> createNotificationChannel() async {
       >()
       ?.createNotificationChannel(channel);
 }
+
+/// LocalNotificationService class for managing local notifications
+class LocalNotificationService {
+  static LocalNotificationService? _instance;
+
+  static LocalNotificationService get instance {
+    _instance ??= LocalNotificationService._();
+    return _instance!;
+  }
+
+  LocalNotificationService._();
+
+  /// Show a local notification
+  Future<void> showNotification({
+    required String title,
+    required String body,
+    String? payload,
+  }) async {
+    const AndroidNotificationDetails androidDetails =
+        AndroidNotificationDetails(
+          'high_importance_channel', // Must match the channel ID created above
+          'High Importance Notifications',
+          channelDescription:
+              'This channel is used for important notifications.',
+          importance: Importance.max,
+          priority: Priority.high,
+          showWhen: true,
+        );
+
+    const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+
+    const NotificationDetails platformDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+      macOS: iosDetails,
+    );
+
+    await flutterLocalNotificationsPlugin.show(
+      DateTime.now().millisecondsSinceEpoch % 100000, // Unique ID
+      title,
+      body,
+      platformDetails,
+      payload: payload,
+    );
+  }
+}
