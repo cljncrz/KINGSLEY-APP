@@ -1,5 +1,6 @@
 import 'package:capstone/controllers/auth_controller.dart';
 import 'package:capstone/services/local_notification_service.dart';
+import 'package:capstone/controllers/chat_controller.dart';
 import 'package:capstone/services/fcm-service.dart';
 import 'package:capstone/services/geofencing_service.dart';
 import 'package:capstone/controllers/navigation_controller.dart';
@@ -32,32 +33,21 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // or trigger a local notification.
 }
 
-Future<void> main() async {
+/// Asynchronously initializes all critical app services before running the app.
+Future<void> initServices() async {
+  print("--- Initializing App Services ---");
+
   /// Widgets Binding
   WidgetsFlutterBinding.ensureInitialized();
 
-  try {
-    /// -- GetX Local Storage
-    await GetStorage.init();
+  /// -- GetX Local Storage
+  await GetStorage.init();
 
-    /// -- Firebase Initialization --
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
-    );
-
-    await MyFCMService().initNotifications();
-  } catch (e) {
-    debugPrint('Failed to initialize app services: $e');
-    // You could show an error screen to the user here if initialization fails.
-  }
+  /// -- Firebase Initialization --
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   /// -- Load environment variables
   await dotenv.load(fileName: "assets/.env");
-
-  // Initialize local notifications
-  // This should be called after Firebase.initializeApp to ensure all necessary services are ready.
-  await initializeLocalNotifications();
-  await createNotificationChannel(); // Call to create the notification channel
 
   // Get the reCAPTCHA site key from environment variables.
   final recaptchaSiteKey = dotenv.env['RECAPTCHA_SITE_KEY'];
@@ -67,8 +57,47 @@ Future<void> main() async {
     );
   }
 
+  // Activate Firebase App Check. This MUST be done before other Firebase services are used.
+  try {
+    await FirebaseAppCheck.instance.activate(
+      androidProvider: kDebugMode
+          ? AndroidProvider.debug
+          : AndroidProvider.playIntegrity,
+      appleProvider: kDebugMode ? AppleProvider.debug : AppleProvider.appAttest,
+      webProvider: ReCaptchaV3Provider(recaptchaSiteKey ?? ''),
+    );
+    debugPrint('✅ Firebase App Check activated successfully.');
+  } catch (e) {
+    debugPrint('❌ Error activating Firebase App Check: $e');
+  }
+
   // Set the background messaging handler
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  // Initialize local and push notifications AFTER Firebase is ready.
+  await initializeLocalNotifications();
+  await createNotificationChannel();
+  await MyFCMService().initNotifications();
+
+  // Initialize controllers using GetX dependency injection.
+  // Use putAsync for controllers that might have async work in onInit.
+  Get.put(ThemeController());
+}
+
+Future<void> main() async {
+  /// Widgets Binding
+  WidgetsFlutterBinding.ensureInitialized();
+
+  try {
+    /// -- GetX Local Storage
+    await GetStorage.init();
+
+    // Initialize all critical services.
+    await initServices();
+  } catch (e) {
+    debugPrint('Failed to initialize app services: $e');
+    // You could show an error screen to the user here if initialization fails.
+  }
 
   // Add this block to print the App Check debug token in debug mode.
   if (kDebugMode) {
@@ -77,25 +106,7 @@ Future<void> main() async {
     });
   }
 
-  try {
-    // Initialize Firebase App Check
-    await FirebaseAppCheck.instance.activate(
-      androidProvider: kDebugMode
-          ? AndroidProvider.debug
-          : AndroidProvider.playIntegrity,
-      appleProvider: kDebugMode ? AppleProvider.debug : AppleProvider.appAttest,
-      webProvider: ReCaptchaV3Provider(
-        recaptchaSiteKey ??
-            '', // Use an empty string if null to avoid using a bad placeholder
-      ),
-    );
-    debugPrint('Firebase App Check activated successfully.');
-  } catch (e) {
-    debugPrint('Error activating Firebase App Check: $e');
-  }
-
   Get.put(AuthController());
-  Get.put(ThemeController());
   Get.put(CartController());
   Get.put(NavigationController());
   Get.put(BookingController());
@@ -104,6 +115,7 @@ Future<void> main() async {
   Get.put(NotificationController());
   Get.put(UserController());
   Get.put(DamageReportController());
+  Get.put(ChatController());
 
   // Initialize Geofencing Service for background location monitoring
   Get.put(GeofencingService());

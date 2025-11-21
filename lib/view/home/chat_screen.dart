@@ -6,7 +6,6 @@ import 'package:capstone/view/home/chat_detail_screen.dart';
 import 'package:capstone/screens/signup/signup_screen.dart';
 import 'package:capstone/controllers/custom_bottom_navbar.dart';
 import 'package:capstone/controllers/chat_controller.dart';
-import 'package:capstone/models/chat_room.dart';
 import 'package:intl/intl.dart';
 
 class AiChatbotScreen extends StatefulWidget {

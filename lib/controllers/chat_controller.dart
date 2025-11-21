@@ -31,9 +31,14 @@ class ChatController extends GetxController {
   void _listenToChatRooms() {
     final user = _auth.currentUser;
     if (user == null) {
+      debugPrint('❌ No user logged in - cannot listen to chat rooms');
       chatRooms.clear();
       return;
     }
+
+    debugPrint('👤 Current user: ${user.uid}');
+    debugPrint('📧 Email: ${user.email}');
+    debugPrint('✅ Email verified: ${user.emailVerified}');
 
     isLoading.value = true;
 
@@ -45,13 +50,15 @@ class ChatController extends GetxController {
         .snapshots()
         .listen(
           (snapshot) {
+            debugPrint('✅ Chat rooms loaded: ${snapshot.docs.length}');
             chatRooms.value = snapshot.docs
                 .map((doc) => ChatRoom.fromFirestore(doc))
                 .toList();
             isLoading.value = false;
           },
           onError: (error) {
-            debugPrint('Error listening to chat rooms: $error');
+            debugPrint('❌ Error listening to chat rooms: $error');
+            debugPrint('❌ Error type: ${error.runtimeType}');
             isLoading.value = false;
           },
         );
@@ -61,6 +68,7 @@ class ChatController extends GetxController {
   Future<String?> getOrCreateChatRoom() async {
     final user = _auth.currentUser;
     if (user == null) {
+      debugPrint('❌ No user logged in - cannot create chat room');
       Get.snackbar(
         'Error',
         'You must be logged in to chat',
@@ -69,6 +77,9 @@ class ChatController extends GetxController {
       );
       return null;
     }
+
+    debugPrint('🔨 Creating/getting chat room for user: ${user.uid}');
+    debugPrint('📧 User email: ${user.email}');
 
     try {
       // Check if chat room already exists
@@ -100,14 +111,20 @@ class ChatController extends GetxController {
       });
 
       return chatRoomRef.id;
-    } catch (e) {
-      debugPrint('Error creating chat room: $e');
+    } on FirebaseException catch (e) {
+      debugPrint(
+        '❌ Firestore Error creating chat room: ${e.code} - ${e.message}',
+      );
       Get.snackbar(
         'Error',
-        'Failed to create chat room',
+        'Failed to create chat room. Please check your connection and try again. (${e.code})',
         backgroundColor: Colors.red,
         colorText: Colors.white,
       );
+      return null;
+    } catch (e) {
+      debugPrint('❌ Unexpected error creating chat room: $e');
+      Get.snackbar('Error', 'An unexpected error occurred.');
       return null;
     }
   }
