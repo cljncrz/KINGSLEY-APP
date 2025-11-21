@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart'; // For star ratings
 import 'package:capstone/controllers/custom_bottom_navbar.dart';
-import 'package:capstone/view/home/technician_detail_screen.dart';
 
 class TechnicianProfilesScreen extends StatelessWidget {
   const TechnicianProfilesScreen({super.key});
@@ -289,95 +288,66 @@ class _TechnicianCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => Get.to(() => TechnicianDetailScreen(technician: technician)),
-      borderRadius: BorderRadius.circular(12),
-      child: Card(
-        margin: const EdgeInsets.only(bottom: 16),
-        elevation: 2,
-        shadowColor: isDark
-            ? Colors.black.withOpacity(0.5)
-            : Colors.grey.withOpacity(0.2),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 2,
+      shadowColor: isDark
+          ? Colors.black.withOpacity(0.5)
+          : Colors.grey.withOpacity(0.2),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 30,
+                  backgroundImage: AssetImage(technician.imageUrl),
+                  backgroundColor: isDark ? Colors.grey[700] : Colors.grey[200],
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        technician.name,
+                        style: AppTextStyle.withColor(
+                          AppTextStyle.h3,
+                          Theme.of(context).textTheme.bodyLarge!.color!,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            RichText(
+              text: TextSpan(
+                style: AppTextStyle.withColor(
+                  AppTextStyle.bodySmall,
+                  Theme.of(context).textTheme.bodySmall!.color!,
+                ),
                 children: [
-                  CircleAvatar(
-                    radius: 30,
-                    backgroundImage: AssetImage(technician.imageUrl),
-                    backgroundColor: isDark
-                        ? Colors.grey[700]
-                        : Colors.grey[200],
+                  const TextSpan(
+                    text: 'Services: ',
+                    style: TextStyle(fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          technician.name,
-                          style: AppTextStyle.withColor(
-                            AppTextStyle.h3,
-                            Theme.of(context).textTheme.bodyLarge!.color!,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            RatingBarIndicator(
-                              rating: technician.rating,
-                              itemBuilder: (context, index) => Icon(
-                                Icons.star,
-                                color: Theme.of(context).primaryColor,
-                              ),
-                              itemCount: 5,
-                              itemSize: 18.0,
-                              direction: Axis.horizontal,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              '${technician.rating} (${technician.reviews} reviews)',
-                              style: AppTextStyle.withColor(
-                                AppTextStyle.bodySmall,
-                                isDark ? Colors.grey[400]! : Colors.grey[600]!,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
+                  TextSpan(text: technician.servicesOffered.join(', ')),
                 ],
               ),
-              const SizedBox(height: 16),
-              RichText(
-                text: TextSpan(
-                  style: AppTextStyle.withColor(
-                    AppTextStyle.bodySmall,
-                    Theme.of(context).textTheme.bodySmall!.color!,
-                  ),
-                  children: [
-                    const TextSpan(
-                      text: 'Services: ',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    TextSpan(text: technician.servicesOffered.join(', ')),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                technician.description,
-                style: AppTextStyle.bodySmall,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              technician.description,
+              style: AppTextStyle.bodySmall,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
         ),
       ),
     );

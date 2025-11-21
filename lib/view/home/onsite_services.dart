@@ -52,26 +52,62 @@ class OnsiteServices extends StatelessWidget {
   }
 
   Widget _buildServiceCard(BuildContext context, Map<String, String> service) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).primaryColor,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            service['title']!,
-            style: AppTextStyle.withColor(AppTextStyle.bodySmall, Colors.white),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            service['description']!,
-            style: AppTextStyle.withColor(AppTextStyle.small, Colors.white),
-          ),
-        ],
+    return InkWell(
+      onTap: () {
+        showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text('Booking Details'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Service: ${service['title']}'),
+                  Text('Description: ${service['description']}'),
+                  const SizedBox(height: 10),
+                  Text('Customer: John Doe'),
+                  Text('Date: 2023-10-15'),
+                  Text('Time: 10:00 AM'),
+                  Text('Status: Confirmed'),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('OK'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).primaryColor,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              service['title']!,
+              style: AppTextStyle.withColor(
+                AppTextStyle.bodySmall,
+                Colors.white,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              service['description']!,
+              style: AppTextStyle.withColor(AppTextStyle.small, Colors.white),
+            ),
+          ],
+        ),
       ),
     );
   }
