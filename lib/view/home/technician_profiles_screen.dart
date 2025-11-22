@@ -4,7 +4,7 @@ import 'package:capstone/models/technician.dart'; // Import the new Technician m
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:flutter_rating_bar/flutter_rating_bar.dart'; // For star ratings
+// For star ratings
 import 'package:capstone/controllers/custom_bottom_navbar.dart';
 
 class TechnicianProfilesScreen extends StatelessWidget {

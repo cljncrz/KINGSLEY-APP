@@ -12,8 +12,9 @@ class GeofencingService extends GetxService {
   static const double geofenceRadius = 500.0; // 500 meters
 
   // Car wash location (replace with your actual coordinates)
-  static const double carwashLatitude = 14.5995; // Example: Manila coordinates
-  static const double carwashLongitude = 120.9842;
+  static const double carwashLatitude =
+      14.68197104208712; // Example: Manila coordinates
+  static const double carwashLongitude = 121.03214662249404;
 
   // Observables
   final RxBool isInsideGeofence = false.obs;

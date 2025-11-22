@@ -377,4 +377,34 @@ class BookingController extends GetxController {
       debugPrint("Error rescheduling booking: $e");
     }
   }
+
+  /// Deletes a booking from the Firestore database.
+  Future<void> deleteBooking(String bookingId) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      Get.snackbar("Error", "You must be logged in to perform this action.");
+      return;
+    }
+
+    try {
+      await _db.collection('bookings').doc(bookingId).delete();
+
+      Get.snackbar(
+        "Success",
+        "Booking history has been deleted.",
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+      );
+    } catch (e) {
+      Get.snackbar(
+        "Error",
+        "Failed to delete booking. Please try again.",
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      debugPrint("Error deleting booking: $e");
+    }
+  }
 }

@@ -317,170 +317,41 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Column(
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: booking.serviceNames
-                  .map(
-                    (serviceName) => Text(
-                      serviceName,
-                      style: AppTextStyle.withColor(
-                        AppTextStyle.h3,
-                        Theme.of(context).textTheme.bodyLarge!.color!,
-                      ),
-                    ),
-                  )
-                  .toList(),
-            ),
-            const SizedBox(height: 8),
-
-            // If booking is approved (Upcoming / Approved), show a highlighted container
-            if (_isApprovedStatus(booking.status))
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                margin: const EdgeInsets.only(bottom: 8),
-                decoration: BoxDecoration(
-                  color: isDark ? Colors.green[900] : Colors.green[50],
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: isDark ? Colors.green[700]! : Colors.green.shade200,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: booking.serviceNames
+                        .map(
+                          (serviceName) => Text(
+                            serviceName,
+                            style: AppTextStyle.withColor(
+                              AppTextStyle.h3,
+                              Theme.of(context).textTheme.bodyLarge!.color!,
+                            ),
+                          ),
+                        )
+                        .toList(),
                   ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'Booking Approved',
-                          style: AppTextStyle.withColor(
-                            AppTextStyle.bodySmall.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                            isDark ? Colors.white : Colors.green.shade800,
-                          ),
-                        ),
-                        Text(
-                          'Price: ${booking.price.toStringAsFixed(2)}',
-                          style: AppTextStyle.withColor(
-                            AppTextStyle.bodySmall,
-                            isDark ? Colors.white70 : Colors.green.shade800,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.person,
-                          size: 14,
-                          color: isDark
-                              ? Colors.white70
-                              : Colors.green.shade800,
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            'Technician: ${booking.technician ?? 'TBD'}',
-                            style: AppTextStyle.withColor(
-                              AppTextStyle.bodySmall,
-                              isDark ? Colors.white70 : Colors.green.shade800,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.calendar_today,
-                          size: 14,
-                          color: isDark
-                              ? Colors.white70
-                              : Colors.green.shade800,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          booking.bookingDate,
-                          style: AppTextStyle.withColor(
-                            AppTextStyle.bodySmall,
-                            isDark ? Colors.white70 : Colors.green.shade800,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Icon(
-                          Icons.access_time,
-                          size: 14,
-                          color: isDark
-                              ? Colors.white70
-                              : Colors.green.shade800,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          booking.bookingTime,
-                          style: AppTextStyle.withColor(
-                            AppTextStyle.bodySmall,
-                            isDark ? Colors.white70 : Colors.green.shade800,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.build_circle,
-                          size: 14,
-                          color: isDark
-                              ? Colors.white70
-                              : Colors.green.shade800,
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            booking.serviceNames.join(', '),
-                            style: AppTextStyle.withColor(
-                              AppTextStyle.bodySmall,
-                              isDark ? Colors.white70 : Colors.green.shade800,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    // Action button inside approved container
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: SizedBox(
-                        height: 34,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: isDark
-                                ? Colors.white10
-                                : Colors.green.shade800,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          onPressed: () =>
-                              Get.to(() => ViewDetailsScreen(booking: booking)),
-                          child: Text(
-                            'View Details',
-                            style: AppTextStyle.withColor(
-                              AppTextStyle.bodySmall,
-                              isDark ? Colors.white : Colors.white,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                if (tabName == 'Completed')
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, color: Colors.red),
+                    onPressed: () {
+                      if (booking.id != null) {
+                        _showDeleteConfirmationDialog(context, booking.id!);
+                      }
+                    },
+                    tooltip: 'Delete Booking History',
+                    splashRadius: 20,
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.only(left: 16, top: 4),
+                  ),
+              ],
+            ),
             // Price (only show when not already displayed in the Approved container)
             if (!_isApprovedStatus(booking.status))
               Text(
@@ -923,6 +794,38 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
     );
   }
 
+  void _showDeleteConfirmationDialog(BuildContext context, String bookingId) {
+    Get.dialog(
+      AlertDialog(
+        title: Text('Delete Booking History', style: AppTextStyle.h3),
+        content: Text(
+          'Are you sure you want to permanently delete this booking history? This action cannot be undone.',
+          style: AppTextStyle.bodyMedium,
+        ),
+        actions: [
+          TextButton(onPressed: () => Get.back(), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            onPressed: () async {
+              Get.back(); // Close dialog
+              await Get.find<BookingController>().deleteBooking(bookingId);
+            },
+            child: Text(
+              'Delete',
+              style: AppTextStyle.buttonMedium.copyWith(color: Colors.white),
+            ),
+          ),
+        ],
+      ),
+      barrierDismissible: false,
+    );
+  }
+
   void _showTechnicianFeedbackDialog(BuildContext context, Booking booking) {
     if (booking.technician == null || booking.technician!.isEmpty) {
       return; // Don't show if no technician is assigned
@@ -1027,25 +930,24 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
                   // --- ESTIMATED TIME Section ---
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment:
-                        CrossAxisAlignment.start, // Align text to the left
-                    children: <Widget>[
-                      Text(
-                        'ESTIMATED TIME 45 MINS. - 1HR',
-                        style: AppTextStyle.withColor(
-                          AppTextStyle.small,
-                          isDark
-                              ? Colors.grey[400]!
-                              : Theme.of(context).textTheme.bodyLarge!.color!,
+                  Flexible(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: <Widget>[
+                        Text(
+                          'ESTIMATED TIME 45 MINS. - 1HR',
+                          style: AppTextStyle.withColor(
+                            AppTextStyle.small,
+                            isDark
+                                ? Colors.grey[400]!
+                                : Theme.of(context).textTheme.bodyLarge!.color!,
+                          ),
+                          textAlign: TextAlign.center,
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-
-                  // Add some space between the two columns
-                  const SizedBox(width: 35),
                 ],
               ),
               const Divider(height: 24),
@@ -1158,7 +1060,7 @@ class ProgressTracker extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     // Define the steps shown in the image
     final List<ServiceStep> steps = [
-      ServiceStep(icon: Icons.flash_on, title: 'Started'),
+      ServiceStep(icon: Icons.check_circle_outline, title: 'Approved'),
       ServiceStep(icon: Icons.cleaning_services_outlined, title: 'In Progress'),
       ServiceStep(icon: Icons.directions_car_filled, title: 'Service Complete'),
     ];

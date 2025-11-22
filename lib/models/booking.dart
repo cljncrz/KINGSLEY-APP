@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum BookingProgress { started, inProgress, completed }
+enum BookingProgress { approved, inProgress, completed }
 
 class Booking {
   final String? id;
@@ -32,7 +32,7 @@ class Booking {
     this.plateNumber,
     this.phoneNumber,
     this.paymentMethod,
-    this.progress = BookingProgress.started,
+    this.progress = BookingProgress.approved,
   });
 
   /// Converts a Booking object into a Map<String, dynamic> for Firestore.
@@ -73,7 +73,7 @@ class Booking {
       paymentMethod: data['paymentMethod'],
       progress: BookingProgress.values.firstWhere(
         (e) => e.name == data['progress'],
-        orElse: () => BookingProgress.started,
+        orElse: () => BookingProgress.approved,
       ),
     );
   }
