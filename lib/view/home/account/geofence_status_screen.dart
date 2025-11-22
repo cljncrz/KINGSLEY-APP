@@ -1,5 +1,6 @@
 import 'package:capstone/services/geofencing_service.dart';
 import 'package:capstone/utils/app_textstyles.dart';
+import 'package:capstone/controllers/custom_bottom_navbar.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
@@ -264,6 +265,7 @@ class GeofenceStatusScreen extends StatelessWidget {
           ),
         );
       }),
+      bottomNavigationBar: const CustomBottomNavbar(),
     );
   }
 

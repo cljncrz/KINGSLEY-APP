@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:capstone/controllers/damage_report_controller.dart';
+import 'package:capstone/controllers/custom_bottom_navbar.dart';
 import 'package:capstone/utils/app_textstyles.dart';
 import 'package:intl/intl.dart';
 
@@ -111,6 +112,7 @@ class _DamageReportsState extends State<DamageReports> {
           );
         },
       ),
+      bottomNavigationBar: const CustomBottomNavbar(),
     );
   }
 

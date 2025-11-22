@@ -10,7 +10,7 @@ import 'package:capstone/view/home/account/edit_profile_screen.dart';
 import 'package:capstone/view/home/account/faqs_screen.dart';
 import 'package:capstone/view/home/account/setting_screen.dart';
 import 'package:capstone/view/home/account/my_reviews_screen.dart';
-import 'package:capstone/screens/home/geofence_status_screen.dart';
+import 'package:capstone/view/home/account/geofence_status_screen.dart';
 import 'package:capstone/screens/signin_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';

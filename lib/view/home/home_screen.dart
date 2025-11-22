@@ -41,7 +41,7 @@ class HomeScreen extends StatelessWidget {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 9),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -54,15 +54,19 @@ class HomeScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                    const Spacer(),
+                    const SizedBox(),
                     // bookcart icon
                     IconButton(
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
                       onPressed: () => Get.to(() => const CartScreen()),
                       icon: const Icon(Icons.book_outlined),
                     ),
-
+                    const SizedBox(width: 2),
                     // notification icon
                     IconButton(
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
                       onPressed: () => Get.to(() => const NotificationScreen()),
                       icon: Obx(() {
                         final unreadCount =
@@ -99,9 +103,11 @@ class HomeScreen extends StatelessWidget {
                         );
                       }),
                     ),
-
+                    const SizedBox(width: 2),
                     // chat icon
                     IconButton(
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
                       onPressed: () => Get.to(() => const AiChatbotScreen()),
                       icon: const Icon(Icons.chat_outlined),
                     ),
