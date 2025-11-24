@@ -4,12 +4,26 @@ import 'package:capstone/screens/signup/signup_screen.dart';
 import 'package:capstone/screens/signup/verification_success_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:get/get.dart';
 
 class OtpVerificationScreen extends StatefulWidget {
   final String phoneNumber;
+  final String verificationId;
+  final int? resendToken;
+  final String userName;
+  final String userEmail;
 
-  const OtpVerificationScreen({super.key, required this.phoneNumber});
+  const OtpVerificationScreen({
+    super.key,
+    required this.phoneNumber,
+    required this.verificationId,
+    this.resendToken,
+    required this.userName,
+    required this.userEmail,
+  });
 
   @override
   State<OtpVerificationScreen> createState() => _OtpVerificationScreenState();
@@ -32,6 +46,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       _controllers.add(TextEditingController());
       _focusNodes.add(FocusNode());
     }
+    _startResendTimer();
   }
 
   void _startResendTimer() {
@@ -51,20 +66,139 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     });
   }
 
-  // here otp verification will be implemented
-  void _verifyOTP() async {
+  // Verify OTP with Firebase Phone Authentication
+  Future<void> _verifyOTP() async {
     if (_isVerifying) return;
 
     String otp = _controllers.map((controller) => controller.text).join();
-    if (otp.length == otpLength) {
+    if (otp.length != otpLength) {
+      Get.snackbar('Error', 'Please enter all 6 digits');
+      return;
+    }
+
+    setState(() {
+      _isVerifying = true;
+    });
+
+    try {
+      // Create phone auth credential
+      PhoneAuthCredential credential = PhoneAuthProvider.credential(
+        verificationId: widget.verificationId,
+        smsCode: otp,
+      );
+
+      // Sign in with phone credential
+      UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithCredential(credential);
+
+      if (userCredential.user != null) {
+        // Complete signup and save user data
+        await _completeSignUp(userCredential.user!.uid);
+
+        // Navigate to success screen
+        Get.offAll(() => const VerificationSuccessScreen());
+      }
+    } on FirebaseAuthException catch (e) {
+      Get.snackbar(
+        'Verification Failed',
+        e.message ?? 'Invalid OTP code. Please try again.',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    } finally {
       setState(() {
-        _isVerifying = true;
+        _isVerifying = false;
+      });
+    }
+  }
+
+  Future<void> _completeSignUp(String userId) async {
+    try {
+      // Get FCM token
+      String? fcmToken = await FirebaseMessaging.instance.getToken();
+
+      // Store user data in Firestore
+      await FirebaseFirestore.instance.collection('users').doc(userId).set({
+        'fullName': widget.userName,
+        'email': widget.userEmail,
+        'phoneNumber': widget.phoneNumber,
+        'phoneVerified': true,
+        'createdAt': FieldValue.serverTimestamp(),
+        'fcmToken': fcmToken,
+        'role': 'user',
       });
 
-      // Simulate a network delay for verification
-      await Future.delayed(const Duration(seconds: 10));
+      // Create a welcome notification
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('notifications')
+          .add({
+            'title': 'Welcome to Kingsley Carwash!',
+            'body':
+                'Your phone number has been verified. Explore our services now!',
+            'createdAt': FieldValue.serverTimestamp(),
+            'isRead': false,
+            'type': 'welcome',
+          });
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to complete signup: ${e.toString()}',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
+  }
 
-      Get.offAll(() => const VerificationSuccessScreen());
+  Future<void> _resendOTP() async {
+    if (!_canResend) return;
+
+    try {
+      String phoneNumber = widget.phoneNumber;
+      if (!phoneNumber.startsWith('+')) {
+        phoneNumber = '+1$phoneNumber';
+      }
+
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: phoneNumber,
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          // Auto-verification (iOS specific)
+          await _verifyOTP();
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          Get.snackbar(
+            'Error',
+            'Failed to resend OTP: ${e.message}',
+            snackPosition: SnackPosition.TOP,
+            backgroundColor: Colors.red,
+            colorText: Colors.white,
+          );
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          Get.snackbar(
+            'Success',
+            'OTP resent to ${widget.phoneNumber}',
+            snackPosition: SnackPosition.TOP,
+            backgroundColor: Colors.green,
+            colorText: Colors.white,
+          );
+          _startResendTimer();
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {},
+        timeout: const Duration(seconds: 120),
+        forceResendingToken: widget.resendToken,
+      );
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to resend OTP: ${e.toString()}',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
     }
   }
 
@@ -194,14 +328,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
               const SizedBox(height: 24),
               Center(
                 child: TextButton(
-                  onPressed: _canResend
-                      ? () {
-                          // TODO: Add logic to actually resend the OTP code
-                          setState(() {
-                            _startResendTimer();
-                          });
-                        }
-                      : null,
+                  onPressed: _canResend ? _resendOTP : null,
                   child: Text(
                     _canResend
                         ? "Didn't receive the code? Resend"

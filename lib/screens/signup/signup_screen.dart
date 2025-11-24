@@ -40,7 +40,7 @@ class _SignupScreenState extends State<SignupScreen> {
     super.dispose();
   }
 
-  Future<void> _handleSignUp() async {
+  Future<void> _sendOTP() async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     if (_formKey.currentState!.validate()) {
       if (!_agreeToTerms) {
@@ -73,60 +73,76 @@ class _SignupScreenState extends State<SignupScreen> {
       });
 
       try {
-        // Create user with Firebase Auth
-        UserCredential userCredential = await FirebaseAuth.instance
-            .createUserWithEmailAndPassword(
-              email: _emailController.text.trim(),
-              password: _passwordController.text,
+        // Format phone number with country code (+63 for Philippines)
+        String phoneNumber = _phoneController.text.trim();
+        if (!phoneNumber.startsWith('+')) {
+          phoneNumber = '+63$phoneNumber';
+        }
+
+        // Send OTP via Firebase Phone Authentication
+        await FirebaseAuth.instance.verifyPhoneNumber(
+          phoneNumber: phoneNumber,
+          verificationCompleted: (PhoneAuthCredential credential) async {
+            // Auto-verification (iOS specific)
+            await _signUpWithCredential(credential);
+          },
+          verificationFailed: (FirebaseAuthException e) {
+            Get.snackbar(
+              'Error',
+              'Verification failed.',
+              titleText: Text(
+                'Phone Verification Failed',
+                style: AppTextStyle.withColor(
+                  AppTextStyle.bodySmall,
+                  isDark ? const Color(0xFF7F1618) : Colors.white,
+                ),
+              ),
+              messageText: Text(
+                e.message ?? 'An unknown error occurred.',
+                style: AppTextStyle.withColor(
+                  AppTextStyle.bodySmall,
+                  isDark ? const Color(0xFF7F1618) : Colors.white,
+                ),
+              ),
+              snackPosition: SnackPosition.TOP,
+              backgroundColor: isDark ? Colors.white : const Color(0xFF7F1618),
+              colorText: isDark ? const Color(0xFF7F1618) : Colors.white,
             );
-
-        // Get FCM token
-        String? fcmToken = await FirebaseMessaging.instance.getToken();
-
-        // Store user data in Firestore
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userCredential.user!.uid)
-            .set({
-              'fullName': _nameController.text.trim(),
-              'email': _emailController.text.trim(),
-              'phoneNumber': _phoneController.text.trim(),
-              'createdAt': FieldValue.serverTimestamp(),
-              'fcmToken': fcmToken,
-              'role': 'user',
+            setState(() {
+              _isLoading = false;
             });
-
-        // Create a welcome notification
-        await FirebaseFirestore.instance
-            .collection('users')
-            .doc(userCredential.user!.uid)
-            .collection('notifications')
-            .add({
-              'title': 'Welcome to Kingsley Carwash!',
-              'body':
-                  'You have successfully created your account. Explore our services now!',
-              'createdAt': FieldValue.serverTimestamp(),
-              'isRead': false,
-              'type': 'welcome',
+          },
+          codeSent: (String verificationId, int? resendToken) {
+            setState(() {
+              _isLoading = false;
             });
-
-        // Navigate to OTP verification
-        Get.off(
-          () => OtpVerificationScreen(phoneNumber: _phoneController.text),
+            // Navigate to OTP verification screen
+            Get.off(
+              () => OtpVerificationScreen(
+                phoneNumber: _phoneController.text.trim(),
+                verificationId: verificationId,
+                resendToken: resendToken,
+                userName: _nameController.text.trim(),
+                userEmail: _emailController.text.trim(),
+              ),
+            );
+          },
+          codeAutoRetrievalTimeout: (String verificationId) {},
+          timeout: const Duration(seconds: 120),
         );
-      } on FirebaseAuthException catch (e) {
+      } catch (e) {
         Get.snackbar(
           'Error',
-          'Sign up failed.',
+          'Failed to send OTP.',
           titleText: Text(
-            'Sign Up Failed',
+            'Error',
             style: AppTextStyle.withColor(
               AppTextStyle.bodySmall,
               isDark ? const Color(0xFF7F1618) : Colors.white,
             ),
           ),
           messageText: Text(
-            e.message ?? 'An unknown error occurred.',
+            e.toString(),
             style: AppTextStyle.withColor(
               AppTextStyle.bodySmall,
               isDark ? const Color(0xFF7F1618) : Colors.white,
@@ -136,11 +152,121 @@ class _SignupScreenState extends State<SignupScreen> {
           backgroundColor: isDark ? Colors.white : const Color(0xFF7F1618),
           colorText: isDark ? const Color(0xFF7F1618) : Colors.white,
         );
-      } finally {
         setState(() {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  Future<void> _signUpWithCredential(PhoneAuthCredential credential) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    try {
+      // Sign in with phone credential
+      UserCredential userCredential = await FirebaseAuth.instance
+          .signInWithCredential(credential);
+
+      // Create email+password account so user can login with email or phone+password later
+      if (userCredential.user != null) {
+        try {
+          await userCredential.user!.verifyBeforeUpdateEmail(
+            _emailController.text.trim(),
+          );
+          await userCredential.user!.updatePassword(
+            _passwordController.text.trim(),
+          );
+        } catch (e) {
+          // If update fails, try creating new email+password account
+          try {
+            UserCredential emailCredential = await FirebaseAuth.instance
+                .createUserWithEmailAndPassword(
+                  email: _emailController.text.trim(),
+                  password: _passwordController.text.trim(),
+                );
+            userCredential = emailCredential;
+          } catch (createError) {
+            // Continue with phone-only auth
+          }
+        }
+        await _completeSignUp(userCredential.user!.uid);
+      }
+    } on FirebaseAuthException catch (e) {
+      Get.snackbar(
+        'Error',
+        'Sign up failed.',
+        titleText: Text(
+          'Sign Up Failed',
+          style: AppTextStyle.withColor(
+            AppTextStyle.bodySmall,
+            isDark ? const Color(0xFF7F1618) : Colors.white,
+          ),
+        ),
+        messageText: Text(
+          e.message ?? 'An unknown error occurred.',
+          style: AppTextStyle.withColor(
+            AppTextStyle.bodySmall,
+            isDark ? const Color(0xFF7F1618) : Colors.white,
+          ),
+        ),
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: isDark ? Colors.white : const Color(0xFF7F1618),
+        colorText: isDark ? const Color(0xFF7F1618) : Colors.white,
+      );
+    }
+  }
+
+  Future<void> _completeSignUp(String userId) async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    try {
+      // Get FCM token
+      String? fcmToken = await FirebaseMessaging.instance.getToken();
+
+      // Store user data in Firestore
+      await FirebaseFirestore.instance.collection('users').doc(userId).set({
+        'fullName': _nameController.text.trim(),
+        'email': _emailController.text.trim(),
+        'phoneNumber': _phoneController.text.trim(),
+        'phoneVerified': true,
+        'createdAt': FieldValue.serverTimestamp(),
+        'fcmToken': fcmToken,
+        'role': 'user',
+      });
+
+      // Create a welcome notification
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('notifications')
+          .add({
+            'title': 'Welcome to Kingsley Carwash!',
+            'body':
+                'Your phone number has been verified. Explore our services now!',
+            'createdAt': FieldValue.serverTimestamp(),
+            'isRead': false,
+            'type': 'welcome',
+          });
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to complete signup.',
+        titleText: Text(
+          'Error',
+          style: AppTextStyle.withColor(
+            AppTextStyle.bodySmall,
+            isDark ? const Color(0xFF7F1618) : Colors.white,
+          ),
+        ),
+        messageText: Text(
+          e.toString(),
+          style: AppTextStyle.withColor(
+            AppTextStyle.bodySmall,
+            isDark ? const Color(0xFF7F1618) : Colors.white,
+          ),
+        ),
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: isDark ? Colors.white : const Color(0xFF7F1618),
+        colorText: isDark ? const Color(0xFF7F1618) : Colors.white,
+      );
     }
   }
 
@@ -337,7 +463,7 @@ class _SignupScreenState extends State<SignupScreen> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _isLoading ? null : _handleSignUp,
+                  onPressed: _isLoading ? null : _sendOTP,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Theme.of(context).primaryColor,
                     padding: const EdgeInsets.symmetric(vertical: 16),
