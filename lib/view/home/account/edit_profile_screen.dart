@@ -106,64 +106,67 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       _isLoading = true;
     });
 
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        throw Exception('No user is currently logged in.');
-      }
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      Get.snackbar('Error', 'No user is currently logged in.');
+      setState(() => _isLoading = false);
+      return;
+    }
 
-      String? newImageUrl = _profileImageUrl;
+    String? newImageUrl = _profileImageUrl;
 
-      // 1. Upload new image to Firebase Storage if one was selected
-      if (_selectedImage != null) {
+    // 1. Upload new image to Firebase Storage if one was selected
+    if (_selectedImage != null) {
+      try {
         final ref = firebase_storage.FirebaseStorage.instance.ref(
           'users/${user.uid}/profile.jpg',
         );
         await ref.putFile(_selectedImage!);
         newImageUrl = await ref.getDownloadURL();
+      } on firebase_storage.FirebaseException catch (e) {
+        debugPrint('Storage Error: ${e.code} - ${e.message}');
+        Get.snackbar(
+          'Upload Failed',
+          'Could not upload profile picture. Please try again. (${e.code})',
+        );
+        setState(() => _isLoading = false);
+        return; // Stop if image upload fails
       }
+    }
 
-      // 2. Update Firebase Auth profile
+    try {
+      // 2. Update Firebase Auth & Firestore
       if (user.displayName != _nameController.text.trim() ||
           user.photoURL != newImageUrl) {
         await user.updateDisplayName(_nameController.text.trim());
         await user.updatePhotoURL(newImageUrl);
       }
 
-      // 3. Update Firestore user document
       final Map<String, dynamic> dataToUpdate = {
         'fullName': _nameController.text.trim(),
         'phoneNumber': _phoneController.text.trim(),
         'profileImageUrl': newImageUrl,
       };
 
+      // Update Firestore and email (if changed)
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
           .update(dataToUpdate);
 
-      // 4. Update email if it has changed (requires re-authentication for security)
       if (user.email != _emailController.text.trim()) {
-        // This is a sensitive operation. For a production app, you should
-        // handle potential errors by asking the user to re-authenticate.
         await user.verifyBeforeUpdateEmail(_emailController.text.trim());
       }
 
-      // 5. Fetch the latest user data and wait for it so the Account screen
-      // can read the updated values when we pop back.
+      // Fetch latest data and navigate back
       await Get.find<UserController>().fetchFirestoreUserData(user.uid);
-
-      // Navigate back first so that the Snackbar isn't intercepted by the
-      // current route (Get.back can otherwise close overlays). Showing the
-      // success message after popping ensures it's visible on the Account
-      // screen.
       Get.back();
 
       Get.rawSnackbar(
         titleText: Text(
           'Success',
           style: AppTextStyle.withColor(
-            AppTextStyle.bodySmall,
+            AppTextStyle.h3,
             isDark ? const Color(0xFF7F1618) : Colors.white,
           ),
         ),
@@ -177,10 +180,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         snackPosition: SnackPosition.TOP,
         backgroundColor: isDark ? Colors.white : const Color(0xFF7F1618),
       );
-    } catch (e) {
+    } on FirebaseException catch (e) {
+      debugPrint('Firestore/Auth Error: ${e.code} - ${e.message}');
       Get.snackbar(
-        'Error updating profile',
-        'An error occurred while saving your changes. Please try again.',
+        'Update Failed',
+        'Could not save profile changes. Please try again. (${e.code})',
         titleText: Text(
           'Error',
           style: AppTextStyle.withColor(
@@ -189,7 +193,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ),
         ),
         messageText: Text(
-          'Failed to save changes: ${e.toString()}',
+          'Failed to save changes: ${e.message}',
           style: AppTextStyle.withColor(
             AppTextStyle.bodySmall,
             isDark ? const Color(0xFF7F1618) : Colors.white,

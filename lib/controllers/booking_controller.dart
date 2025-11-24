@@ -106,7 +106,7 @@ class BookingController extends GetxController {
     try {
       // Generate a custom ID using timestamp (e.g. BK1234567)
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final customId = 'BK${timestamp.toString().substring(5)}';
+      final customId = 'UID${timestamp.toString().substring(5)}';
 
       // Create booking with custom ID
       final bookingRef = _db.collection('bookings').doc(customId);

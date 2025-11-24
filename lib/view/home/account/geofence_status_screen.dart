@@ -14,10 +14,13 @@ class GeofenceStatusScreen extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Geofencing Status'), elevation: 0),
+      appBar: AppBar(title: const Text('Nearby Locations'), elevation: 0),
       body: Obx(() {
         final isMonitoring = geofencingService.isMonitoring.value;
         final isInside = geofencingService.isInsideGeofence.value;
+        final closestLoc = geofencingService.closestLocation.value;
+        final closestName = closestLoc?['name'] ?? 'Nearest Location';
+        final distance = geofencingService.distanceToClosest.value;
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -42,8 +45,8 @@ class GeofenceStatusScreen extends StatelessWidget {
                       const SizedBox(height: 16),
                       Text(
                         isInside
-                            ? 'You\'re Near Kingsley Carwash!'
-                            : 'Not at Carwash Location',
+                            ? 'You\'re Near $closestName!\n(${geofencingService.formatDistance(distance)})'
+                            : 'Not at Any Carwash Location',
                         style: AppTextStyle.withColor(
                           AppTextStyle.h2,
                           Theme.of(context).textTheme.bodyLarge!.color!,
@@ -190,6 +193,53 @@ class GeofenceStatusScreen extends StatelessWidget {
                   ),
                 ),
               ),
+              const SizedBox(height: 12),
+              // Get Directions button - only show when inside geofence
+              if (isInside)
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => geofencingService.openDirections(),
+                    icon: const Icon(Icons.directions, color: Colors.white),
+                    label: Text(
+                      'Get Directions',
+                      style: AppTextStyle.withColor(
+                        AppTextStyle.buttonMedium,
+                        Colors.white,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).primaryColor,
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                )
+              else
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: null,
+                    icon: const Icon(Icons.directions),
+                    label: Text(
+                      'Get Directions (Not in Range)',
+                      style: AppTextStyle.withColor(
+                        AppTextStyle.buttonMedium,
+                        Colors.grey,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[300],
+                      disabledBackgroundColor: Colors.grey[300],
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
               const SizedBox(height: 12),
 
               SizedBox(
