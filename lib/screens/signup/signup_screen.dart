@@ -73,67 +73,103 @@ class _SignupScreenState extends State<SignupScreen> {
       });
 
       try {
-        // Format phone number with country code (+63 for Philippines)
-        String phoneNumber = _phoneController.text.trim();
-        if (!phoneNumber.startsWith('+')) {
-          phoneNumber = '+63$phoneNumber';
-        }
+        // Step 1: First create the email/password account
+        UserCredential userCredential = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(
+              email: _emailController.text.trim(),
+              password: _passwordController.text.trim(),
+            );
 
-        // Send OTP via Firebase Phone Authentication
-        await FirebaseAuth.instance.verifyPhoneNumber(
-          phoneNumber: phoneNumber,
-          verificationCompleted: (PhoneAuthCredential credential) async {
-            // Auto-verification (iOS specific)
-            await _signUpWithCredential(credential);
-          },
-          verificationFailed: (FirebaseAuthException e) {
-            Get.snackbar(
-              'Error',
-              'Verification failed.',
-              titleText: Text(
-                'Phone Verification Failed',
-                style: AppTextStyle.withColor(
-                  AppTextStyle.bodySmall,
-                  isDark ? const Color(0xFF7F1618) : Colors.white,
+        if (userCredential.user != null) {
+          // Step 2: Now send OTP to phone number for verification (security purposes)
+          String phoneNumber = _phoneController.text.trim();
+          if (!phoneNumber.startsWith('+')) {
+            phoneNumber = '+63$phoneNumber';
+          }
+
+          await FirebaseAuth.instance.verifyPhoneNumber(
+            phoneNumber: phoneNumber,
+            verificationCompleted: (PhoneAuthCredential credential) async {
+              // Auto-verification (iOS specific)
+              await _completeSignUp(userCredential.user!.uid);
+            },
+            verificationFailed: (FirebaseAuthException e) {
+              Get.snackbar(
+                'Error',
+                'Phone verification failed.',
+                titleText: Text(
+                  'Phone Verification Failed',
+                  style: AppTextStyle.withColor(
+                    AppTextStyle.bodySmall,
+                    isDark ? const Color(0xFF7F1618) : Colors.white,
+                  ),
                 ),
-              ),
-              messageText: Text(
-                e.message ?? 'An unknown error occurred.',
-                style: AppTextStyle.withColor(
-                  AppTextStyle.bodySmall,
-                  isDark ? const Color(0xFF7F1618) : Colors.white,
+                messageText: Text(
+                  e.message ?? 'An unknown error occurred.',
+                  style: AppTextStyle.withColor(
+                    AppTextStyle.bodySmall,
+                    isDark ? const Color(0xFF7F1618) : Colors.white,
+                  ),
                 ),
-              ),
-              snackPosition: SnackPosition.TOP,
-              backgroundColor: isDark ? Colors.white : const Color(0xFF7F1618),
-              colorText: isDark ? const Color(0xFF7F1618) : Colors.white,
-            );
-            setState(() {
-              _isLoading = false;
-            });
-          },
-          codeSent: (String verificationId, int? resendToken) {
-            setState(() {
-              _isLoading = false;
-            });
-            // Navigate to OTP verification screen
-            Get.off(
-              () => OtpVerificationScreen(
-                phoneNumber: _phoneController.text.trim(),
-                verificationId: verificationId,
-                resendToken: resendToken,
-                userName: _nameController.text.trim(),
-                userEmail: _emailController.text.trim(),
-              ),
-            );
-          },
-          codeAutoRetrievalTimeout: (String verificationId) {},
-          timeout: const Duration(seconds: 120),
+                snackPosition: SnackPosition.TOP,
+                backgroundColor: isDark
+                    ? Colors.white
+                    : const Color(0xFF7F1618),
+                colorText: isDark ? const Color(0xFF7F1618) : Colors.white,
+              );
+              setState(() {
+                _isLoading = false;
+              });
+            },
+            codeSent: (String verificationId, int? resendToken) {
+              setState(() {
+                _isLoading = false;
+              });
+              // Navigate to OTP verification screen
+              Get.off(
+                () => OtpVerificationScreen(
+                  phoneNumber: _phoneController.text.trim(),
+                  verificationId: verificationId,
+                  resendToken: resendToken,
+                  userName: _nameController.text.trim(),
+                  userEmail: _emailController.text.trim(),
+                  userId: userCredential.user!.uid,
+                ),
+              );
+            },
+            codeAutoRetrievalTimeout: (String verificationId) {},
+            timeout: const Duration(seconds: 120),
+          );
+        }
+      } on FirebaseAuthException catch (e) {
+        Get.snackbar(
+          'Error',
+          'Sign up failed.',
+          titleText: Text(
+            'Sign Up Failed',
+            style: AppTextStyle.withColor(
+              AppTextStyle.bodySmall,
+              isDark ? const Color(0xFF7F1618) : Colors.white,
+            ),
+          ),
+          messageText: Text(
+            e.message ?? 'An unknown error occurred.',
+            style: AppTextStyle.withColor(
+              AppTextStyle.bodySmall,
+              isDark ? const Color(0xFF7F1618) : Colors.white,
+            ),
+          ),
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: isDark ? Colors.white : const Color(0xFF7F1618),
+          colorText: isDark ? const Color(0xFF7F1618) : Colors.white,
         );
+        setState(() {
+          _isLoading = false;
+        });
       } catch (e) {
         Get.snackbar(
           'Error',
-          'Failed to send OTP.',
+          'An unexpected error occurred.',
           titleText: Text(
             'Error',
             style: AppTextStyle.withColor(
@@ -156,62 +192,6 @@ class _SignupScreenState extends State<SignupScreen> {
           _isLoading = false;
         });
       }
-    }
-  }
-
-  Future<void> _signUpWithCredential(PhoneAuthCredential credential) async {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    try {
-      // Sign in with phone credential
-      UserCredential userCredential = await FirebaseAuth.instance
-          .signInWithCredential(credential);
-
-      // Create email+password account so user can login with email or phone+password later
-      if (userCredential.user != null) {
-        try {
-          await userCredential.user!.verifyBeforeUpdateEmail(
-            _emailController.text.trim(),
-          );
-          await userCredential.user!.updatePassword(
-            _passwordController.text.trim(),
-          );
-        } catch (e) {
-          // If update fails, try creating new email+password account
-          try {
-            UserCredential emailCredential = await FirebaseAuth.instance
-                .createUserWithEmailAndPassword(
-                  email: _emailController.text.trim(),
-                  password: _passwordController.text.trim(),
-                );
-            userCredential = emailCredential;
-          } catch (createError) {
-            // Continue with phone-only auth
-          }
-        }
-        await _completeSignUp(userCredential.user!.uid);
-      }
-    } on FirebaseAuthException catch (e) {
-      Get.snackbar(
-        'Error',
-        'Sign up failed.',
-        titleText: Text(
-          'Sign Up Failed',
-          style: AppTextStyle.withColor(
-            AppTextStyle.bodySmall,
-            isDark ? const Color(0xFF7F1618) : Colors.white,
-          ),
-        ),
-        messageText: Text(
-          e.message ?? 'An unknown error occurred.',
-          style: AppTextStyle.withColor(
-            AppTextStyle.bodySmall,
-            isDark ? const Color(0xFF7F1618) : Colors.white,
-          ),
-        ),
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: isDark ? Colors.white : const Color(0xFF7F1618),
-        colorText: isDark ? const Color(0xFF7F1618) : Colors.white,
-      );
     }
   }
 

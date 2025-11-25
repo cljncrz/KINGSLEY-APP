@@ -15,6 +15,7 @@ class OtpVerificationScreen extends StatefulWidget {
   final int? resendToken;
   final String userName;
   final String userEmail;
+  final String userId;
 
   const OtpVerificationScreen({
     super.key,
@@ -23,6 +24,7 @@ class OtpVerificationScreen extends StatefulWidget {
     this.resendToken,
     required this.userName,
     required this.userEmail,
+    required this.userId,
   });
 
   @override
@@ -87,17 +89,23 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         smsCode: otp,
       );
 
-      // Sign in with phone credential
-      UserCredential userCredential = await FirebaseAuth.instance
-          .signInWithCredential(credential);
-
-      if (userCredential.user != null) {
-        // Complete signup and save user data
-        await _completeSignUp(userCredential.user!.uid);
-
-        // Navigate to success screen
-        Get.offAll(() => const VerificationSuccessScreen());
+      // Link phone credential to existing email account
+      // This validates the OTP without creating a duplicate account
+      try {
+        await FirebaseAuth.instance.currentUser?.linkWithCredential(credential);
+      } catch (e) {
+        // If linking fails because phone is already linked, continue anyway
+        // The OTP validation is successful if we got here
+        if (!e.toString().contains('credential-already-in-use')) {
+          rethrow;
+        }
       }
+
+      // Complete signup and save user data
+      await _completeSignUp(widget.userId);
+
+      // Navigate to success screen
+      Get.offAll(() => const VerificationSuccessScreen());
     } on FirebaseAuthException catch (e) {
       Get.snackbar(
         'Verification Failed',
@@ -159,7 +167,7 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     try {
       String phoneNumber = widget.phoneNumber;
       if (!phoneNumber.startsWith('+')) {
-        phoneNumber = '+1$phoneNumber';
+        phoneNumber = '+63$phoneNumber';
       }
 
       await FirebaseAuth.instance.verifyPhoneNumber(
