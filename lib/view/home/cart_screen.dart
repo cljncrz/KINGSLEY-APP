@@ -768,38 +768,38 @@ class _CartScreenState extends State<CartScreen> {
                     );
                     return;
                   }
-                  if (_selectedPaymentMethod == 'Cash on Hand') {
-                    // Format the date and time into strings for the Booking model.
-                    final String formattedDate = DateFormat.yMMMMd().format(
-                      _selectedDate!,
-                    );
-                    final String formattedTime = _selectedTimeSlot!.format(
-                      context,
-                    );
+                  // Format the date and time into strings for the Booking model.
+                  final String formattedDate = DateFormat.yMMMMd().format(
+                    _selectedDate!,
+                  );
+                  final String formattedTime = _selectedTimeSlot!.format(
+                    context,
+                  );
 
-                    final newBooking = Booking(
-                      userId: user.uid,
-                      serviceNames: cartController.cartItems
-                          .map(
-                            (item) =>
-                                '${item.product.name} (${item.selectedSize})',
-                          )
-                          .toList(),
-                      bookingDate: formattedDate,
-                      bookingTime: formattedTime,
-                      price: cartController.total,
-                      carType: _carTypeController.text.trim(),
-                      carName: _carNameController.text.trim(),
-                      plateNumber: _plateNumberController.text.trim(),
-                      phoneNumber: _phoneNumberController.text.trim(),
-                    );
+                  final newBooking = Booking(
+                    userId: user.uid,
+                    serviceNames: cartController.cartItems
+                        .map(
+                          (item) =>
+                              '${item.product.name} (${item.selectedSize})',
+                        )
+                        .toList(),
+                    bookingDate: formattedDate,
+                    bookingTime: formattedTime,
+                    price: cartController.total,
+                    carType: _carTypeController.text.trim(),
+                    carName: _carNameController.text.trim(),
+                    plateNumber: _plateNumberController.text.trim(),
+                    phoneNumber: _phoneNumberController.text.trim(),
+                    paymentMethod: _selectedPaymentMethod,
+                  );
 
-                    await bookingController.addBooking(newBooking);
-                    cartController.cartItems.clear();
-                    Get.offAll(() => const BookingSuccessfulScreen());
-                  } else {
-                    // TODO: Implement other payment methods
-                  }
+                  await bookingController.addBooking(
+                    newBooking,
+                    paymentMethod: _selectedPaymentMethod,
+                  );
+                  cartController.cartItems.clear();
+                  Get.offAll(() => const BookingSuccessfulScreen());
                 }
               },
               style: ElevatedButton.styleFrom(

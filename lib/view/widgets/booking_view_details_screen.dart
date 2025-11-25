@@ -172,8 +172,11 @@ class ViewDetailsScreen extends StatelessWidget {
                     context,
                     icon: Icons.payment_outlined,
                     label: 'Payment',
-                    value: Text('Cash on Hand', style: AppTextStyle.bodySmall),
-                  ), // Example
+                    value: Text(
+                      booking.paymentMethod ?? 'Not Specified',
+                      style: AppTextStyle.bodySmall,
+                    ),
+                  ),
                   const Divider(height: 24),
                   _buildDetailRow(
                     context,

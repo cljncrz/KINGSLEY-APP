@@ -126,8 +126,8 @@ class BookingController extends GetxController {
 
       await _createBookingNotification(booking, customId);
 
-      // Create payment notification for cash payments
-      if (paymentMethod == 'Cash on Hand') {
+      // Create payment notification for all payment methods
+      if (paymentMethod != null) {
         await _createPaymentNotification(booking, customId);
       }
     } catch (e) {

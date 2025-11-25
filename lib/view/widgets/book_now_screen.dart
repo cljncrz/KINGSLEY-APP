@@ -599,40 +599,36 @@ class _BookNowScreenState extends State<BookNowScreen> {
                     return;
                   }
 
-                  if (_selectedPaymentMethod == 'Cash on Hand') {
-                    // In a real app, you would save the booking to a database here
-                    // and trigger a notification for the user and admin.
-                    final String formattedDate = DateFormat.yMMMMd().format(
-                      _selectedDate!,
-                    );
-                    final String formattedTime = _selectedTimeSlot!.format(
-                      context,
-                    );
+                  // In a real app, you would save the booking to a database here
+                  // and trigger a notification for the user and admin.
+                  final String formattedDate = DateFormat.yMMMMd().format(
+                    _selectedDate!,
+                  );
+                  final String formattedTime = _selectedTimeSlot!.format(
+                    context,
+                  );
 
-                    final newBooking = Booking(
-                      userId: user.uid,
-                      serviceNames: [
-                        '${widget.product.name} (${widget.selectedSize})',
-                      ],
-                      bookingDate: formattedDate,
-                      bookingTime: formattedTime,
-                      price: widget.selectedPrice,
-                      carType: _carTypeController.text.trim(),
-                      carName: _carNameController.text.trim(),
-                      plateNumber: _plateNumberController.text.trim(),
-                      phoneNumber: _phoneNumberController.text.trim(),
-                      paymentMethod: _selectedPaymentMethod,
-                    );
+                  final newBooking = Booking(
+                    userId: user.uid,
+                    serviceNames: [
+                      '${widget.product.name} (${widget.selectedSize})',
+                    ],
+                    bookingDate: formattedDate,
+                    bookingTime: formattedTime,
+                    price: widget.selectedPrice,
+                    carType: _carTypeController.text.trim(),
+                    carName: _carNameController.text.trim(),
+                    plateNumber: _plateNumberController.text.trim(),
+                    phoneNumber: _phoneNumberController.text.trim(),
+                    paymentMethod: _selectedPaymentMethod,
+                  );
 
-                    bookingController.addBooking(
-                      newBooking,
-                      paymentMethod: _selectedPaymentMethod,
-                    );
-                    // The item booked via "Book Now" is not added to the cart, so no need to clear cartController.cartItems.
-                    Get.offAll(() => const BookingSuccessfulScreen());
-                  } else {
-                    // TODO: Implement other payment methods like GCash or PayMaya
-                  }
+                  bookingController.addBooking(
+                    newBooking,
+                    paymentMethod: _selectedPaymentMethod,
+                  );
+                  // The item booked via "Book Now" is not added to the cart, so no need to clear cartController.cartItems.
+                  Get.offAll(() => const BookingSuccessfulScreen());
                 }
               },
               style: ElevatedButton.styleFrom(
