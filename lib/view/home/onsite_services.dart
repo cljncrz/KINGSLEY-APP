@@ -1,8 +1,11 @@
 import 'dart:async';
 import 'package:capstone/models/walkin.dart';
 import 'package:capstone/services/walkin_service.dart';
+import 'package:capstone/screens/signup/signup_screen.dart';
 import 'package:capstone/utils/app_textstyles.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 
 class OnsiteServices extends StatefulWidget {
   final Function? onRefresh;
@@ -255,7 +258,14 @@ class _OnsiteServicesState extends State<OnsiteServices> {
 
     return InkWell(
       onTap: () {
-        _showWalkinDetailsDialog(context, walkin);
+        final user = FirebaseAuth.instance.currentUser;
+        if (user == null) {
+          // Guest mode
+          _showGuestSignUpDialog(context);
+        } else {
+          // Logged-in user
+          _showWalkinDetailsDialog(context, walkin);
+        }
       },
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -291,27 +301,39 @@ class _OnsiteServicesState extends State<OnsiteServices> {
 
   Widget _buildDefaultServiceCard(bool isDark, int serviceNumber) {
     final primaryColor = Theme.of(context).primaryColor;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: primaryColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.withOpacity(0.3), width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            'Service #$serviceNumber',
-            style: AppTextStyle.withColor(AppTextStyle.bodySmall, Colors.grey),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'No Walk-In\nCustomers',
-            style: AppTextStyle.withColor(AppTextStyle.small, Colors.grey),
-          ),
-        ],
+    return InkWell(
+      onTap: () {
+        final user = FirebaseAuth.instance.currentUser;
+        if (user == null) {
+          _showGuestSignUpDialog(context);
+        }
+        // No action for logged-in users on an empty card
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: primaryColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.withOpacity(0.3), width: 1),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Service #$serviceNumber',
+              style: AppTextStyle.withColor(
+                AppTextStyle.bodySmall,
+                Colors.grey,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'No Walk-In\nCustomers',
+              style: AppTextStyle.withColor(AppTextStyle.small, Colors.grey),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -405,6 +427,85 @@ class _OnsiteServicesState extends State<OnsiteServices> {
           ),
         ),
       ],
+    );
+  }
+
+  void _showGuestSignUpDialog(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    Get.dialog(
+      AlertDialog(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        contentPadding: const EdgeInsets.all(24),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.lock_outline,
+              size: 80,
+              color: isDark ? Colors.grey[600] : Colors.grey[400],
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Sign Up to View Details',
+              style: AppTextStyle.withColor(
+                AppTextStyle.h2,
+                isDark ? Colors.white : Colors.black,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Please sign up or log in to see service details.',
+              style: AppTextStyle.withColor(
+                AppTextStyle.bodyMedium,
+                isDark ? Colors.grey[500]! : Colors.grey[600]!,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF7F1618),
+                    ),
+                    onPressed: () => Get.back(),
+                    child: Text(
+                      'Cancel',
+                      style: AppTextStyle.withColor(
+                        AppTextStyle.buttonMedium,
+                        Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF7F1618),
+                    ),
+                    onPressed: () {
+                      Get.back(); // Close the dialog
+                      Get.to(() => const SignupScreen());
+                    },
+                    child: Text(
+                      'Sign Up',
+                      style: AppTextStyle.withColor(
+                        AppTextStyle.buttonMedium,
+                        Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      barrierDismissible: false,
     );
   }
 }
