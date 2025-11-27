@@ -9,6 +9,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:capstone/controllers/user_controller.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
+import 'package:permission_handler/permission_handler.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -63,28 +64,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   Future<void> _pickImage() async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final ImagePicker picker = ImagePicker();
-    // Pick an image from the gallery.
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
-    if (image != null) {
-      setState(() {
-        _selectedImage = File(image.path);
-      });
-    } else {
-      // User canceled the picker
+    // Request photo/gallery permission
+    final photoStatus = await Permission.photos.request();
+
+    if (!photoStatus.isGranted) {
       Get.snackbar(
-        'No Image Selected',
-        'You did not select an image.',
+        'Permission Denied',
+        'Gallery access is required to pick a profile photo.',
         titleText: Text(
-          'No Image Selected',
+          'Permission Denied',
           style: AppTextStyle.withColor(
             AppTextStyle.bodySmall,
             isDark ? const Color(0xFF7F1618) : Colors.white,
           ),
         ),
         messageText: Text(
-          'You did not select an image.',
+          'Gallery access is required to pick a profile photo.',
           style: AppTextStyle.withColor(
             AppTextStyle.bodySmall,
             isDark ? const Color(0xFF7F1618) : Colors.white,
@@ -93,6 +89,43 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         snackPosition: SnackPosition.TOP,
         backgroundColor: isDark ? Colors.white : const Color(0xFF7F1618),
       );
+      return;
+    }
+
+    final ImagePicker picker = ImagePicker();
+    try {
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+
+      if (image != null) {
+        setState(() {
+          _selectedImage = File(image.path);
+        });
+      } else {
+        // User canceled the picker
+        Get.snackbar(
+          'No Image Selected',
+          'You did not select an image.',
+          titleText: Text(
+            'No Image Selected',
+            style: AppTextStyle.withColor(
+              AppTextStyle.bodySmall,
+              isDark ? const Color(0xFF7F1618) : Colors.white,
+            ),
+          ),
+          messageText: Text(
+            'You did not select an image.',
+            style: AppTextStyle.withColor(
+              AppTextStyle.bodySmall,
+              isDark ? const Color(0xFF7F1618) : Colors.white,
+            ),
+          ),
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: isDark ? Colors.white : const Color(0xFF7F1618),
+        );
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+      Get.snackbar('Error', 'Failed to pick image: $e');
     }
   }
 
@@ -113,24 +146,73 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       return;
     }
 
+    // Refresh user data to ensure session is valid
+    try {
+      await user.reload();
+      debugPrint('User session verified');
+    } catch (e) {
+      debugPrint('Error verifying session: $e');
+      Get.snackbar(
+        'Session Error',
+        'Your session may have expired. Please log out and log in again.',
+      );
+      setState(() => _isLoading = false);
+      return;
+    }
+
     String? newImageUrl = _profileImageUrl;
 
     // 1. Upload new image to Firebase Storage if one was selected
     if (_selectedImage != null) {
       try {
+        debugPrint('Starting profile image upload for user: ${user.uid}');
+
+        // Ensure token is fresh before upload
+        try {
+          await user.reload();
+          debugPrint('Auth token refreshed before upload');
+        } catch (tokenError) {
+          debugPrint('Error refreshing token: $tokenError');
+        }
+
         final ref = firebase_storage.FirebaseStorage.instance.ref(
           'users/${user.uid}/profile.jpg',
         );
+        debugPrint('Upload path: ${ref.fullPath}');
+
         await ref.putFile(_selectedImage!);
         newImageUrl = await ref.getDownloadURL();
+        debugPrint('Profile image uploaded successfully: $newImageUrl');
       } on firebase_storage.FirebaseException catch (e) {
-        debugPrint('Storage Error: ${e.code} - ${e.message}');
+        debugPrint('Storage Error: Code=${e.code}, Message=${e.message}');
+        debugPrint('Full exception: $e');
+
+        // Check if error is due to App Check or authentication
+        if (e.code == 'unauthenticated' || e.code == 'permission-denied') {
+          debugPrint('User is authenticated: ${user.uid}');
+          // Try to refresh token one more time
+          try {
+            await user.reload();
+            debugPrint('Token refreshed after error');
+          } catch (tokenError) {
+            debugPrint('Error refreshing token after error: $tokenError');
+          }
+        }
+
         Get.snackbar(
           'Upload Failed',
           'Could not upload profile picture. Please try again. (${e.code})',
         );
         setState(() => _isLoading = false);
         return; // Stop if image upload fails
+      } catch (e) {
+        debugPrint('Unexpected error during profile upload: $e');
+        Get.snackbar(
+          'Upload Failed',
+          'An unexpected error occurred. Please try again.',
+        );
+        setState(() => _isLoading = false);
+        return;
       }
     }
 

@@ -51,6 +51,12 @@
 	<string>Your location is needed to find nearby car wash branches and provide accurate service times, even when the app is in the background.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>Your location is needed to find nearby car wash branches and provide accurate service times, even when the app is in the background.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Camera access is needed to take photos for damage reports and profile pictures.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Photo library access is needed to select images for damage reports and profile pictures.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Photo library access is needed to save images.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>

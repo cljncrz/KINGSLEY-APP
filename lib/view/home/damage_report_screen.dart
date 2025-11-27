@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:capstone/screens/signup/signup_screen.dart';
 
 class DamageReportScreen extends StatefulWidget {
@@ -61,6 +62,17 @@ class _DamageReportScreenState extends State<DamageReportScreen> {
       return;
     }
 
+    // Request photo permission
+    final photoStatus = await Permission.photos.request();
+    if (!photoStatus.isGranted) {
+      Get.snackbar(
+        'Permission Denied',
+        'Gallery access is required to pick photos.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
     try {
       final List<XFile> pickedFiles = await _picker.pickMultiImage(
         imageQuality: 80, // To reduce file size
@@ -86,6 +98,17 @@ class _DamageReportScreenState extends State<DamageReportScreen> {
       Get.snackbar(
         'Limit Reached',
         'You can only upload a maximum of 10 photos.',
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      return;
+    }
+
+    // Request camera permission
+    final cameraStatus = await Permission.camera.request();
+    if (!cameraStatus.isGranted) {
+      Get.snackbar(
+        'Permission Denied',
+        'Camera access is required to take photos.',
         snackPosition: SnackPosition.BOTTOM,
       );
       return;

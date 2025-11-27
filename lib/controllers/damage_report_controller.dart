@@ -26,6 +26,21 @@ class DamageReportController extends GetxController {
       return false;
     }
 
+    // Verify user session is valid
+    try {
+      await user.reload();
+      debugPrint('User session verified for damage report');
+    } catch (e) {
+      debugPrint('Error verifying session: $e');
+      Get.snackbar(
+        "Session Error",
+        "Your session has expired. Please log out and log in again.",
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return false;
+    }
+
     isLoading.value = true;
 
     try {
@@ -90,24 +105,56 @@ class DamageReportController extends GetxController {
     final List<String> imageUrls = [];
     for (var image in images) {
       try {
+        debugPrint('Starting image upload: ${image.name}');
+
         final ref = _storage.ref(
           'damage_reports/$userId/${DateTime.now().millisecondsSinceEpoch}_${image.name}',
         );
+
+        debugPrint('Upload path: ${ref.fullPath}');
+        debugPrint('User ID: $userId');
+
         final uploadTask = await ref.putFile(File(image.path));
         final url = await uploadTask.ref.getDownloadURL();
         imageUrls.add(url);
+        debugPrint('Image uploaded successfully: $url');
       } on FirebaseException catch (e) {
         debugPrint(
-          'Storage Error during image upload: ${e.code} - ${e.message}',
+          'Storage Error during image upload: Code=${e.code}, Message=${e.message}',
         );
+        debugPrint('Full exception: $e');
+
+        // Check if error is due to App Check or authentication
+        if (e.code == 'unauthenticated' || e.code == 'permission-denied') {
+          // Try to get current user and check token
+          final user = _auth.currentUser;
+          if (user != null) {
+            debugPrint('User is authenticated: ${user.uid}');
+            // Try to refresh token
+            try {
+              await user.reload();
+              debugPrint('Token refreshed successfully');
+            } catch (tokenError) {
+              debugPrint('Error refreshing token: $tokenError');
+            }
+          }
+        }
+
         Get.snackbar(
           "Image Upload Failed",
           "Could not upload an image. Please check your connection and try again. (${e.code})",
           backgroundColor: Colors.red,
           colorText: Colors.white,
         );
-        // If one image fails, we stop and return what we have, which will be empty
-        // or partially filled, causing the submitReport to fail gracefully.
+        return [];
+      } catch (e) {
+        debugPrint('Unexpected error during image upload: $e');
+        Get.snackbar(
+          "Image Upload Failed",
+          "An unexpected error occurred. Please try again.",
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
         return [];
       }
     }
