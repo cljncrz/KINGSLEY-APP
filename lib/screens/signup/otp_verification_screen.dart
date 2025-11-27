@@ -126,6 +126,12 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
       // Get FCM token
       String? fcmToken = await FirebaseMessaging.instance.getToken();
 
+      // Update Firebase Auth user with displayName
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await user.updateDisplayName(widget.userName);
+      }
+
       // Store user data in Firestore
       await FirebaseFirestore.instance.collection('users').doc(userId).set({
         'fullName': widget.userName,

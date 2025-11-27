@@ -1,11 +1,41 @@
 import 'package:capstone/services/local_notification_service.dart';
+import 'package:capstone/view/home/account/geofence_status_screen.dart';
+import 'package:capstone/screens/signin_screen.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:get/get.dart';
 
 class MyFCMService {
   final _firebaseMessaging = FirebaseMessaging.instance;
+
+  /// Checks if the user is currently authenticated
+  bool _isUserAuthenticated() {
+    return FirebaseAuth.instance.currentUser != null;
+  }
+
+  /// Handles navigation based on notification type and authentication status
+  Future<void> _handleGeofenceNotification(RemoteMessage message) async {
+    final isAuthenticated = _isUserAuthenticated();
+
+    if (isAuthenticated) {
+      // User is logged in - navigate to Geofence Status Screen
+      Get.to(() => const GeofenceStatusScreen());
+    } else {
+      // User is not logged in - show snackbar and navigate to login
+      Get.snackbar(
+        'Login Required',
+        'Please login or sign up to view geofencing information.',
+        snackPosition: SnackPosition.TOP,
+        duration: const Duration(seconds: 4),
+      );
+      // Navigate to login/signup screen - delay to ensure snackbar shows
+      Future.delayed(const Duration(milliseconds: 500), () {
+        Get.to(() => const SigninScreen());
+      });
+    }
+  }
 
   /// Displays a local notification using the data from a Firebase RemoteMessage.
   Future<void> showLocalNotification(RemoteMessage message) async {
@@ -29,13 +59,15 @@ class MyFCMService {
         android: androidPlatformChannelSpecifics,
       );
 
-      // 2. Show the notification
+      // 2. Show the notification with payload containing type information
       await flutterLocalNotificationsPlugin.show(
         notification.hashCode, // Unique ID for the notification
         notification.title,
         notification.body,
         platformChannelSpecifics,
-        payload: message.data.toString(),
+        payload: message.data.containsKey('type')
+            ? message.data['type']
+            : message.data.toString(),
       );
     }
   }
@@ -131,7 +163,15 @@ class MyFCMService {
     // When the user taps a notification to open the app.
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       print('A message was clicked/opened!');
-      // Use message.data to navigate the user to a specific screen based on the payload.
+      final notificationType = message.data['type'] ?? '';
+
+      // Check if it's a geofence notification
+      if (notificationType == 'geofence' ||
+          notificationType == 'geofencing' ||
+          message.notification?.title?.toLowerCase().contains('geofence') ==
+              true) {
+        _handleGeofenceNotification(message);
+      }
     });
 
     // 4. Handle notification when the app is **Terminated**
@@ -139,7 +179,15 @@ class MyFCMService {
     _firebaseMessaging.getInitialMessage().then((RemoteMessage? message) {
       if (message != null) {
         print('App opened from terminated state by a message!');
-        // Handle navigation/data from the message
+        final notificationType = message.data['type'] ?? '';
+
+        // Check if it's a geofence notification
+        if (notificationType == 'geofence' ||
+            notificationType == 'geofencing' ||
+            message.notification?.title?.toLowerCase().contains('geofence') ==
+                true) {
+          _handleGeofenceNotification(message);
+        }
       }
     });
   }

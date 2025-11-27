@@ -1,9 +1,45 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart'; // For debugPrint
+import 'package:get/get.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:capstone/view/home/account/geofence_status_screen.dart';
+import 'package:capstone/screens/signin_screen.dart';
 
 // 1. Create a global instance
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
+
+/// Handles navigation when a local notification is tapped
+Future<void> _handleLocalNotificationTap(String? payload) async {
+  if (payload == null || payload.isEmpty) return;
+
+  debugPrint('Local notification tapped with payload: $payload');
+
+  // Check if it's a geofence notification
+  if (payload == 'geofence' ||
+      payload == 'geofencing' ||
+      payload.toLowerCase().contains('geofence')) {
+    final isAuthenticated = FirebaseAuth.instance.currentUser != null;
+
+    if (isAuthenticated) {
+      // User is logged in - navigate to Geofence Status Screen
+      Get.to(() => const GeofenceStatusScreen());
+    } else {
+      // User is not logged in - show snackbar and navigate to login
+      Get.snackbar(
+        'Login Required',
+        'Please login or sign up to view geofencing information.',
+        snackPosition: SnackPosition.TOP,
+        duration: const Duration(seconds: 4),
+      );
+      // Delay navigation to ensure snackbar shows first
+      Future.delayed(const Duration(milliseconds: 500), () {
+        Get.to(() => const SigninScreen());
+      });
+    }
+  }
+}
 
 /// Initializes the local notifications plugin with platform-specific settings.
 Future<void> initializeLocalNotifications() async {
@@ -36,6 +72,7 @@ Future<void> initializeLocalNotifications() async {
       // Handle navigation or action when the notification is tapped
       if (response.payload != null) {
         debugPrint('Notification payload tapped: ${response.payload}');
+        await _handleLocalNotificationTap(response.payload);
       }
     },
   );
@@ -50,6 +87,8 @@ Future<void> createNotificationChannel() async {
     description:
         'This channel is used for important notifications.', // Description for users
     importance: Importance.max, // Set to max for higher visibility
+    enableVibration: true,
+    enableLights: true,
   );
 
   await flutterLocalNotificationsPlugin
@@ -76,7 +115,7 @@ class LocalNotificationService {
     required String body,
     String? payload,
   }) async {
-    const AndroidNotificationDetails androidDetails =
+    final AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
           'high_importance_channel', // Must match the channel ID created above
           'High Importance Notifications',
@@ -85,6 +124,16 @@ class LocalNotificationService {
           importance: Importance.max,
           priority: Priority.high,
           showWhen: true,
+          // Ensure notification shows on lock screen
+          visibility: NotificationVisibility.public,
+          // Make notification persistent until user interacts with it
+          autoCancel: false,
+          // Enable vibration on lock screen
+          enableVibration: true,
+          // Enable sound
+          playSound: true,
+          // Set notification color
+          color: Color.fromARGB(255, 33, 150, 243),
         );
 
     const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
@@ -93,7 +142,7 @@ class LocalNotificationService {
       presentSound: true,
     );
 
-    const NotificationDetails platformDetails = NotificationDetails(
+    final NotificationDetails platformDetails = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
       macOS: iosDetails,

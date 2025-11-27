@@ -368,7 +368,6 @@ void _showLogOutDialog(BuildContext context) {
               Expanded(
                 child: ElevatedButton(
                   onPressed: () {
-                    final authController = Get.find<AuthController>();
                     final navigationController =
                         Get.find<NavigationController>();
                     navigationController.changeIndex(0); // Reset to home tab

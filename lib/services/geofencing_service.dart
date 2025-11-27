@@ -284,8 +284,7 @@ class GeofencingService extends GetxService {
     // Show notification
     LocalNotificationService.instance.showNotification(
       title: 'Welcome to $locName! 🚗',
-      body:
-          'You\'re nearby! Our team is ready to serve you. Distance: ${distance.toStringAsFixed(0)}m',
+      body: 'Our promos are waiting!\nCheck the app for exclusive offers.',
       payload: 'geofence_enter',
     );
   }

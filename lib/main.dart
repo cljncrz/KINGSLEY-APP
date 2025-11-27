@@ -106,6 +106,7 @@ Future<void> main() async {
     });
   }
 
+  Get.put(ThemeController());
   Get.put(AuthController());
   Get.put(CartController());
   Get.put(NavigationController());
