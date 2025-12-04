@@ -103,61 +103,79 @@ class DamageReportController extends GetxController {
 
   Future<List<String>> _uploadImages(List<XFile> images, String userId) async {
     final List<String> imageUrls = [];
-    for (var image in images) {
+
+    for (int i = 0; i < images.length; i++) {
       try {
-        debugPrint('Starting image upload: ${image.name}');
+        final image = images[i];
+        debugPrint('Uploading image ${i + 1}/${images.length}: ${image.name}');
 
-        final ref = _storage.ref(
-          'damage_reports/$userId/${DateTime.now().millisecondsSinceEpoch}_${image.name}',
-        );
-
-        debugPrint('Upload path: ${ref.fullPath}');
-        debugPrint('User ID: $userId');
-
-        final uploadTask = await ref.putFile(File(image.path));
-        final url = await uploadTask.ref.getDownloadURL();
-        imageUrls.add(url);
-        debugPrint('Image uploaded successfully: $url');
-      } on FirebaseException catch (e) {
-        debugPrint(
-          'Storage Error during image upload: Code=${e.code}, Message=${e.message}',
-        );
-        debugPrint('Full exception: $e');
-
-        // Check if error is due to App Check or authentication
-        if (e.code == 'unauthenticated' || e.code == 'permission-denied') {
-          // Try to get current user and check token
-          final user = _auth.currentUser;
-          if (user != null) {
-            debugPrint('User is authenticated: ${user.uid}');
-            // Try to refresh token
-            try {
-              await user.reload();
-              debugPrint('Token refreshed successfully');
-            } catch (tokenError) {
-              debugPrint('Error refreshing token: $tokenError');
-            }
+        // Refresh the token BEFORE each upload
+        final user = _auth.currentUser;
+        if (user != null) {
+          try {
+            await user.reload();
+            await user.getIdToken(true); // Force refresh the token
+            debugPrint(
+              '✅ Auth token force-refreshed successfully before image upload.',
+            );
+          } catch (e) {
+            debugPrint(
+              '❌ Critical Error: Failed to refresh auth token before image upload: $e',
+            );
+            Get.snackbar(
+              "Authentication Error",
+              "Your session is invalid. Please log out and sign in again.",
+              backgroundColor: Colors.red,
+              colorText: Colors.white,
+            );
+            continue; // Skip this image if token refresh fails
           }
         }
 
-        Get.snackbar(
-          "Image Upload Failed",
-          "Could not upload an image. Please check your connection and try again. (${e.code})",
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        final filename =
+            'damage_reports/$userId/${timestamp}_${i}_${image.name}';
+        final ref = _storage.ref(filename);
+
+        debugPrint('Uploading to: ${ref.fullPath}');
+
+        final file = File(image.path);
+        if (!await file.exists()) {
+          debugPrint('File does not exist: ${image.path}');
+          continue;
+        }
+
+        // Upload with metadata
+        final uploadTask = await ref.putFile(
+          file,
+          SettableMetadata(
+            contentType: 'image/jpeg',
+            customMetadata: {
+              'uploadedBy': userId,
+              'originalName': image.name,
+              'timestamp': timestamp.toString(),
+            },
+          ),
         );
-        return [];
-      } catch (e) {
-        debugPrint('Unexpected error during image upload: $e');
-        Get.snackbar(
-          "Image Upload Failed",
-          "An unexpected error occurred. Please try again.",
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
-        );
-        return [];
+
+        final downloadUrl = await uploadTask.ref.getDownloadURL();
+        imageUrls.add(downloadUrl);
+        debugPrint('Image ${i + 1} uploaded: $downloadUrl');
+      } on FirebaseException catch (e) {
+        debugPrint('Error uploading image ${i + 1}: $e');
+        if (e.code == 'unauthenticated' ||
+            e.message?.contains('App Check token is invalid') == true) {
+          Get.snackbar(
+            "Upload Failed",
+            "Authentication or App Check token invalid. Please log out and log in again.",
+            backgroundColor: Colors.red,
+            colorText: Colors.white,
+          );
+        }
+        // Continue with other images instead of failing completely
       }
     }
+
     return imageUrls;
   }
 }

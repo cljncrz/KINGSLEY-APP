@@ -167,12 +167,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       try {
         debugPrint('Starting profile image upload for user: ${user.uid}');
 
-        // Ensure token is fresh before upload
+        // Force-refresh the token to ensure it's valid before the upload.
+        // If this fails, we should not proceed with the upload.
         try {
           await user.reload();
-          debugPrint('Auth token refreshed before upload');
+          await user.getIdToken(true);
+          debugPrint('Auth token force-refreshed before upload.');
         } catch (tokenError) {
-          debugPrint('Error refreshing token: $tokenError');
+          debugPrint(
+            'Critical Error: Failed to refresh auth token: $tokenError',
+          );
+          Get.snackbar(
+            'Authentication Error',
+            'Your session is invalid. Please log out and sign in again.',
+          );
+          setState(() => _isLoading = false);
+          return; // Stop the process if token refresh fails
         }
 
         final ref = firebase_storage.FirebaseStorage.instance.ref(
@@ -186,18 +196,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       } on firebase_storage.FirebaseException catch (e) {
         debugPrint('Storage Error: Code=${e.code}, Message=${e.message}');
         debugPrint('Full exception: $e');
-
-        // Check if error is due to App Check or authentication
-        if (e.code == 'unauthenticated' || e.code == 'permission-denied') {
-          debugPrint('User is authenticated: ${user.uid}');
-          // Try to refresh token one more time
-          try {
-            await user.reload();
-            debugPrint('Token refreshed after error');
-          } catch (tokenError) {
-            debugPrint('Error refreshing token after error: $tokenError');
-          }
-        }
 
         Get.snackbar(
           'Upload Failed',

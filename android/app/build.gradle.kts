@@ -57,7 +57,8 @@ dependencies {
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-firestore")
     implementation("com.google.firebase:firebase-storage")
-    implementation("com.google.firebase:firebase-appcheck")
+    // Use the Play Integrity provider for App Check in release builds
+    implementation("com.google.firebase:firebase-appcheck-playintegrity")
     implementation("com.google.firebase:firebase-messaging")
     implementation("com.google.firebase:firebase-functions")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")

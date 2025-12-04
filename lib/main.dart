@@ -33,70 +33,58 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // or trigger a local notification.
 }
 
-/// Asynchronously initializes all critical app services before running the app.
-Future<void> initServices() async {
-  print("--- Initializing App Services ---");
-
-  /// Widgets Binding
-  WidgetsFlutterBinding.ensureInitialized();
-
-  /// -- GetX Local Storage
-  await GetStorage.init();
-
-  /// -- Firebase Initialization --
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
-
-  /// -- Load environment variables
-  await dotenv.load(fileName: "assets/.env");
-
-  // Get the reCAPTCHA site key from environment variables.
-  final recaptchaSiteKey = dotenv.env['RECAPTCHA_SITE_KEY'];
-  if (recaptchaSiteKey == null || recaptchaSiteKey.isEmpty) {
-    debugPrint(
-      'WARNING: RECAPTCHA_SITE_KEY not found in .env file. Firebase App Check for web will fail.',
-    );
-  }
-
-  // Activate Firebase App Check. This MUST be done before other Firebase services are used.
-  try {
-    await FirebaseAppCheck.instance.activate(
-      androidProvider: kDebugMode
-          ? AndroidProvider.debug
-          : AndroidProvider.playIntegrity,
-      appleProvider: kDebugMode ? AppleProvider.debug : AppleProvider.appAttest,
-      webProvider: ReCaptchaV3Provider(recaptchaSiteKey ?? ''),
-    );
-    debugPrint('✅ Firebase App Check activated successfully.');
-  } catch (e) {
-    debugPrint('❌ Error activating Firebase App Check: $e');
-  }
-
-  // Set the background messaging handler
-  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
-
-  // Initialize local and push notifications AFTER Firebase is ready.
-  await initializeLocalNotifications();
-  await createNotificationChannel();
-  await MyFCMService().initNotifications();
-
-  // Initialize controllers using GetX dependency injection.
-  // Use putAsync for controllers that might have async work in onInit.
-  Get.put(ThemeController());
-}
-
 Future<void> main() async {
-  /// Widgets Binding
-  WidgetsFlutterBinding.ensureInitialized();
-
   try {
+    print("--- Initializing App Services ---");
+
+    /// Widgets Binding
+    WidgetsFlutterBinding.ensureInitialized();
+
     /// -- GetX Local Storage
     await GetStorage.init();
 
     // Initialize all critical services.
-    await initServices();
+    /// -- Firebase Initialization --
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+
+    /// -- Load environment variables
+    await dotenv.load(fileName: "assets/.env");
+
+    // Get the reCAPTCHA site key from environment variables.
+    final recaptchaSiteKey = dotenv.env['RECAPTCHA_SITE_KEY'];
+    if (recaptchaSiteKey == null || recaptchaSiteKey.isEmpty) {
+      debugPrint(
+        'WARNING: RECAPTCHA_SITE_KEY not found in .env file. Firebase App Check for web will fail.',
+      );
+    }
+
+    // Activate Firebase App Check. This MUST be done before other Firebase services are used.
+    try {
+      await FirebaseAppCheck.instance.activate(
+        androidProvider: kDebugMode
+            ? AndroidProvider.debug
+            : AndroidProvider.playIntegrity,
+        appleProvider: kDebugMode
+            ? AppleProvider.debug
+            : AppleProvider.appAttest,
+      );
+      debugPrint('✅ Firebase App Check activated successfully.');
+    } catch (e) {
+      debugPrint('❌ Error activating Firebase App Check: $e');
+    }
+
+    // Set the background messaging handler
+    FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+    // Initialize local and push notifications AFTER Firebase is ready.
+    await initializeLocalNotifications();
+    await createNotificationChannel();
+    await MyFCMService().initNotifications();
   } catch (e) {
     debugPrint('Failed to initialize app services: $e');
-    // You could show an error screen to the user here if initialization fails.
+    // Consider showing an error screen to the user here if initialization fails.
   }
 
   // Add this block to print the App Check debug token in debug mode.
@@ -106,6 +94,7 @@ Future<void> main() async {
     });
   }
 
+  // Initialize controllers using GetX dependency injection.
   Get.put(ThemeController());
   Get.put(AuthController());
   Get.put(CartController());
