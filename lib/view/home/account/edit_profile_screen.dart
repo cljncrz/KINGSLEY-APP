@@ -10,6 +10,7 @@ import 'package:capstone/controllers/user_controller.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart' as firebase_storage;
 import 'package:permission_handler/permission_handler.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 
 class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({super.key});
@@ -34,19 +35,28 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   }
 
   // Load user data from the central UserController
-  void _loadInitialDataFromController() {
+  void _loadInitialDataFromController() async {
     final userController = Get.find<UserController>();
     final firebaseUser = userController.firebaseUser.value;
-    final firestoreData = userController.firestoreUserData.value;
 
     if (firebaseUser != null) {
-      _emailController.text =
-          firestoreData?['email'] ?? firebaseUser.email ?? '';
-      _nameController.text =
-          firestoreData?['fullName'] ?? firebaseUser.displayName ?? '';
-      _phoneController.text = firestoreData?['phoneNumber'] ?? '';
-      _profileImageUrl =
-          firestoreData?['profileImageUrl'] ?? firebaseUser.photoURL;
+      // Refresh Firestore data to ensure we have the latest
+      await userController.refreshUserData();
+
+      // Now load the refreshed data
+      final firestoreData = userController.firestoreUserData.value;
+
+      if (mounted) {
+        setState(() {
+          _emailController.text =
+              firestoreData?['email'] ?? firebaseUser.email ?? '';
+          _nameController.text =
+              firestoreData?['fullName'] ?? firebaseUser.displayName ?? '';
+          _phoneController.text = firestoreData?['phoneNumber'] ?? '';
+          _profileImageUrl =
+              firestoreData?['profileImageUrl'] ?? firebaseUser.photoURL;
+        });
+      }
     } else {
       // Handle case where user is somehow null, maybe navigate back or show error
       Get.snackbar('Error', 'Could not load user data.');
@@ -184,6 +194,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           setState(() => _isLoading = false);
           return; // Stop the process if token refresh fails
         }
+
+        // Force-refresh the App Check token to ensure it's valid before upload.
+        final appCheckToken = await FirebaseAppCheck.instance.getToken(true);
+        debugPrint(
+          'App Check token refreshed. Ready for upload: ${appCheckToken != null}',
+        );
 
         final ref = firebase_storage.FirebaseStorage.instance.ref(
           'users/${user.uid}/profile.jpg',

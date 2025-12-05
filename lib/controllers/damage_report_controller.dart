@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:capstone/controllers/notification_controller.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 
 class DamageReportController extends GetxController {
   final _db = FirebaseFirestore.instance;
@@ -48,6 +49,16 @@ class DamageReportController extends GetxController {
       if (imageUrls.isEmpty) {
         Get.snackbar("Error", "Image upload failed. Please try again.");
         return false;
+      }
+
+      // Force-refresh App Check token before writing to Firestore
+      final appCheckToken = await FirebaseAppCheck.instance.getToken(true);
+      if (appCheckToken == null) {
+        throw FirebaseException(
+          plugin: 'app-check',
+          code: 'token-error',
+          message: 'Could not retrieve App Check token.',
+        );
       }
 
       final reportData = {

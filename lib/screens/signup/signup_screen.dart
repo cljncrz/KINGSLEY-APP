@@ -6,8 +6,6 @@ import 'package:capstone/screens/signup/otp_verification_screen.dart';
 import 'package:capstone/screens/signin_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/gestures.dart';
 import 'package:get/get.dart';
 
@@ -73,74 +71,65 @@ class _SignupScreenState extends State<SignupScreen> {
       });
 
       try {
-        // Step 1: First create the email/password account
-        UserCredential userCredential = await FirebaseAuth.instance
-            .createUserWithEmailAndPassword(
-              email: _emailController.text.trim(),
-              password: _passwordController.text.trim(),
-            );
-
-        if (userCredential.user != null) {
-          // Step 2: Now send OTP to phone number for verification (security purposes)
-          String phoneNumber = _phoneController.text.trim();
-          if (!phoneNumber.startsWith('+')) {
-            phoneNumber = '+63$phoneNumber';
-          }
-
-          await FirebaseAuth.instance.verifyPhoneNumber(
-            phoneNumber: phoneNumber,
-            verificationCompleted: (PhoneAuthCredential credential) async {
-              // Auto-verification (iOS specific)
-              await _completeSignUp(userCredential.user!.uid);
-            },
-            verificationFailed: (FirebaseAuthException e) {
-              Get.snackbar(
-                'Error',
-                'Phone verification failed.',
-                titleText: Text(
-                  'Phone Verification Failed',
-                  style: AppTextStyle.withColor(
-                    AppTextStyle.bodySmall,
-                    isDark ? const Color(0xFF7F1618) : Colors.white,
-                  ),
-                ),
-                messageText: Text(
-                  e.message ?? 'An unknown error occurred.',
-                  style: AppTextStyle.withColor(
-                    AppTextStyle.bodySmall,
-                    isDark ? const Color(0xFF7F1618) : Colors.white,
-                  ),
-                ),
-                snackPosition: SnackPosition.TOP,
-                backgroundColor: isDark
-                    ? Colors.white
-                    : const Color(0xFF7F1618),
-                colorText: isDark ? const Color(0xFF7F1618) : Colors.white,
-              );
-              setState(() {
-                _isLoading = false;
-              });
-            },
-            codeSent: (String verificationId, int? resendToken) {
-              setState(() {
-                _isLoading = false;
-              });
-              // Navigate to OTP verification screen
-              Get.off(
-                () => OtpVerificationScreen(
-                  phoneNumber: _phoneController.text.trim(),
-                  verificationId: verificationId,
-                  resendToken: resendToken,
-                  userName: _nameController.text.trim(),
-                  userEmail: _emailController.text.trim(),
-                  userId: userCredential.user!.uid,
-                ),
-              );
-            },
-            codeAutoRetrievalTimeout: (String verificationId) {},
-            timeout: const Duration(seconds: 120),
-          );
+        // SECURITY FIX: Only send OTP - do NOT create account yet
+        // Account will be created only after successful OTP verification
+        String phoneNumber = _phoneController.text.trim();
+        if (!phoneNumber.startsWith('+')) {
+          phoneNumber = '+63$phoneNumber';
         }
+
+        await FirebaseAuth.instance.verifyPhoneNumber(
+          phoneNumber: phoneNumber,
+          verificationCompleted: (PhoneAuthCredential credential) async {
+            // Auto-verification (iOS specific)
+            // Account creation happens in OTP verification screen
+          },
+          verificationFailed: (FirebaseAuthException e) {
+            Get.snackbar(
+              'Error',
+              'Phone verification failed.',
+              titleText: Text(
+                'Phone Verification Failed',
+                style: AppTextStyle.withColor(
+                  AppTextStyle.bodySmall,
+                  isDark ? const Color(0xFF7F1618) : Colors.white,
+                ),
+              ),
+              messageText: Text(
+                e.message ?? 'An unknown error occurred.',
+                style: AppTextStyle.withColor(
+                  AppTextStyle.bodySmall,
+                  isDark ? const Color(0xFF7F1618) : Colors.white,
+                ),
+              ),
+              snackPosition: SnackPosition.TOP,
+              backgroundColor: isDark ? Colors.white : const Color(0xFF7F1618),
+              colorText: isDark ? const Color(0xFF7F1618) : Colors.white,
+            );
+            setState(() {
+              _isLoading = false;
+            });
+          },
+          codeSent: (String verificationId, int? resendToken) {
+            setState(() {
+              _isLoading = false;
+            });
+            // Navigate to OTP verification screen with all registration data
+            // Account creation happens only after OTP verification succeeds
+            Get.off(
+              () => OtpVerificationScreen(
+                phoneNumber: _phoneController.text.trim(),
+                verificationId: verificationId,
+                resendToken: resendToken,
+                userName: _nameController.text.trim(),
+                userEmail: _emailController.text.trim(),
+                userPassword: _passwordController.text.trim(),
+              ),
+            );
+          },
+          codeAutoRetrievalTimeout: (String verificationId) {},
+          timeout: const Duration(seconds: 120),
+        );
       } on FirebaseAuthException catch (e) {
         Get.snackbar(
           'Error',
@@ -192,67 +181,6 @@ class _SignupScreenState extends State<SignupScreen> {
           _isLoading = false;
         });
       }
-    }
-  }
-
-  Future<void> _completeSignUp(String userId) async {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    try {
-      // Get FCM token
-      String? fcmToken = await FirebaseMessaging.instance.getToken();
-
-      // Update Firebase Auth user with displayName
-      User? user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        await user.updateDisplayName(_nameController.text.trim());
-      }
-
-      // Store user data in Firestore
-      await FirebaseFirestore.instance.collection('users').doc(userId).set({
-        'fullName': _nameController.text.trim(),
-        'email': _emailController.text.trim(),
-        'phoneNumber': _phoneController.text.trim(),
-        'phoneVerified': true,
-        'createdAt': FieldValue.serverTimestamp(),
-        'fcmToken': fcmToken,
-        'role': 'user',
-      });
-
-      // Create a welcome notification
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(userId)
-          .collection('notifications')
-          .add({
-            'title': 'Welcome to Kingsley Carwash!',
-            'body':
-                'Your phone number has been verified. Explore our services now!',
-            'createdAt': FieldValue.serverTimestamp(),
-            'isRead': false,
-            'type': 'welcome',
-          });
-    } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Failed to complete signup.',
-        titleText: Text(
-          'Error',
-          style: AppTextStyle.withColor(
-            AppTextStyle.bodySmall,
-            isDark ? const Color(0xFF7F1618) : Colors.white,
-          ),
-        ),
-        messageText: Text(
-          e.toString(),
-          style: AppTextStyle.withColor(
-            AppTextStyle.bodySmall,
-            isDark ? const Color(0xFF7F1618) : Colors.white,
-          ),
-        ),
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: isDark ? Colors.white : const Color(0xFF7F1618),
-        colorText: isDark ? const Color(0xFF7F1618) : Colors.white,
-      );
     }
   }
 

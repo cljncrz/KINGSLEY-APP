@@ -15,7 +15,7 @@ class OtpVerificationScreen extends StatefulWidget {
   final int? resendToken;
   final String userName;
   final String userEmail;
-  final String userId;
+  final String userPassword;
 
   const OtpVerificationScreen({
     super.key,
@@ -24,7 +24,7 @@ class OtpVerificationScreen extends StatefulWidget {
     this.resendToken,
     required this.userName,
     required this.userEmail,
-    required this.userId,
+    required this.userPassword,
   });
 
   @override
@@ -83,16 +83,28 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
     });
 
     try {
-      // Create phone auth credential
+      // SECURITY FIX: Create account ONLY after successful OTP verification
+
+      // Step 1: Create the email/password account
+      UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: widget.userEmail,
+            password: widget.userPassword,
+          );
+
+      if (userCredential.user == null) {
+        throw Exception('Failed to create user account');
+      }
+
+      // Step 2: Verify OTP by creating and linking phone credential
       PhoneAuthCredential credential = PhoneAuthProvider.credential(
         verificationId: widget.verificationId,
         smsCode: otp,
       );
 
-      // Link phone credential to existing email account
-      // This validates the OTP without creating a duplicate account
+      // Link phone credential to the newly created email account
       try {
-        await FirebaseAuth.instance.currentUser?.linkWithCredential(credential);
+        await userCredential.user!.linkWithCredential(credential);
       } catch (e) {
         // If linking fails because phone is already linked, continue anyway
         // The OTP validation is successful if we got here
@@ -101,8 +113,8 @@ class _OtpVerificationScreenState extends State<OtpVerificationScreen> {
         }
       }
 
-      // Complete signup and save user data
-      await _completeSignUp(widget.userId);
+      // Step 3: Complete signup and save user data to Firestore
+      await _completeSignUp(userCredential.user!.uid);
 
       // Navigate to success screen
       Get.offAll(() => const VerificationSuccessScreen());
