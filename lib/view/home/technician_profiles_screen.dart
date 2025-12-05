@@ -2,191 +2,60 @@ import 'package:capstone/utils/app_textstyles.dart';
 import 'package:capstone/screens/signup/signup_screen.dart';
 import 'package:capstone/models/technician.dart'; // Import the new Technician model
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 // For star ratings
 import 'package:capstone/controllers/custom_bottom_navbar.dart';
 
-class TechnicianProfilesScreen extends StatelessWidget {
+class TechnicianProfilesScreen extends StatefulWidget {
   const TechnicianProfilesScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // Mock data for 10 technician profiles
-    final List<Technician> technicians = [
-      Technician(
-        id: 'tech1',
-        name: 'Bisu Go',
-        imageUrl: 'assets/images/logo.png', // Placeholder image
-        rating: 4.8,
-        reviews: 122,
-        servicesOffered: ['Full Detailing', 'Ceramic Coating'],
-        description:
-            'Experienced in high-end car detailing and paint correction.',
-        userReviews: [
-          Review(
-            id: 'rev1',
-            userName: 'Alice',
-            userAvatarUrl: 'assets/images/logo.png',
-            rating: 5,
-            comment: 'Absolutely stunning results! My car looks brand new.',
-          ),
-          Review(
-            id: 'rev2',
-            userName: 'Bob',
-            userAvatarUrl: 'assets/images/logo.png',
-            rating: 4.5,
-            comment: 'Great attention to detail.',
-          ),
-        ],
-      ),
-      Technician(
-        id: 'tech2',
-        name: 'Rey Ignacio',
-        imageUrl: 'assets/images/logo.png',
-        rating: 4.5,
-        reviews: 96,
-        servicesOffered: ['Interior Cleaning', 'Engine Wash'],
-        description:
-            'Specializes in meticulous interior care and engine bay cleaning.',
-        userReviews: [
-          Review(
-            id: 'rev3',
-            userName: 'Charlie',
-            userAvatarUrl: 'assets/images/logo.png',
-            rating: 4,
-            comment: 'Good job on the interior, but took a bit long.',
-          ),
-        ],
-      ),
-      Technician(
-        id: 'tech3',
-        name: 'Robert Guerrero',
-        imageUrl: 'assets/images/logo.png',
-        rating: 4.9,
-        reviews: 151,
-        servicesOffered: ['Hydrophobic Protection', 'Waxing'],
-        description:
-            'Master of hydrophobic treatments and long-lasting wax applications.',
-        userReviews: [
-          Review(
-            id: 'rev4',
-            userName: 'Diana',
-            userAvatarUrl: 'assets/images/logo.png',
-            rating: 5,
-            comment: 'The water beading is insane! Highly recommend.',
-          ),
-        ],
-      ),
-      Technician(
-        id: 'tech4',
-        name: 'Mike Perez',
-        imageUrl: 'assets/images/logo.png',
-        rating: 4.7,
-        reviews: 80,
-        servicesOffered: ['Basic Wash', 'Tire Dressing'],
-        description: 'Provides quick yet thorough basic washes and tire care.',
-        userReviews: [],
-      ),
-      Technician(
-        id: 'tech5',
-        name: 'Michael Domingo',
-        imageUrl: 'assets/images/logo.png',
-        rating: 4.6,
-        reviews: 111,
-        servicesOffered: ['Headlight Restoration', 'Scratch Removal'],
-        description:
-            'Expert in restoring faded headlights and minor scratch repair.',
-        userReviews: [
-          Review(
-            id: 'rev5',
-            userName: 'Eve',
-            userAvatarUrl: 'assets/images/logo.png',
-            rating: 5,
-            comment: 'My headlights are crystal clear now!',
-          ),
-        ],
-      ),
-      Technician(
-        id: 'tech6',
-        name: 'JP Gilbuena',
-        imageUrl: 'assets/images/logo.png',
-        rating: 4.4,
-        reviews: 70,
-        servicesOffered: ['Motorcycle Detailing', 'Chrome Polishing'],
-        description:
-            'Dedicated to bringing out the shine in motorcycles and chrome parts.',
-        userReviews: [],
-      ),
-      Technician(
-        id: 'tech7',
-        name: 'Yuan Castillo',
-        imageUrl: 'assets/images/logo.png',
-        rating: 4.8,
-        reviews: 131,
-        servicesOffered: ['Odor Removal', 'Upholstery Cleaning'],
-        description:
-            'Specializes in eliminating stubborn odors and deep cleaning upholstery.',
-        userReviews: [
-          Review(
-            id: 'rev6',
-            userName: 'Frank',
-            userAvatarUrl: 'assets/images/logo.png',
-            rating: 5,
-            comment: 'That weird smell is finally gone. Thank you!',
-          ),
-        ],
-      ),
-      Technician(
-        id: 'tech8',
-        name: 'Jay Ramirez',
-        imageUrl: 'assets/images/logo.png',
-        rating: 4.5,
-        reviews: 90,
-        servicesOffered: ['Window Tinting', 'Glass Treatment'],
-        description:
-            'Skilled in professional window tinting and advanced glass treatments.',
-        userReviews: [],
-      ),
-      Technician(
-        id: 'tech9',
-        name: 'Ernest Del Mundo',
-        imageUrl: 'assets/images/logo.png',
-        rating: 4.7,
-        reviews: 105,
-        servicesOffered: ['Fleet Washing', 'Commercial Vehicles'],
-        description:
-            'Manages large fleet washing and detailing for commercial clients.',
-        userReviews: [],
-      ),
-      Technician(
-        id: 'tech10',
-        name: 'James Mendoza',
-        imageUrl: 'assets/images/logo.png',
-        rating: 4.9,
-        reviews: 162,
-        servicesOffered: ['Paint Protection Film', 'Vinyl Wraps'],
-        description:
-            'Certified installer of paint protection films and custom vinyl wraps.',
-        userReviews: [
-          Review(
-            id: 'rev7',
-            userName: 'Grace',
-            userAvatarUrl: 'assets/images/logo.png',
-            rating: 5,
-            comment: 'The PPF installation was flawless. Worth every penny.',
-          ),
-          Review(
-            id: 'rev8',
-            userName: 'Heidi',
-            userAvatarUrl: 'assets/images/logo.png',
-            rating: 4.8,
-            comment: 'Very professional and the wrap looks amazing.',
-          ),
-        ],
-      ),
-    ];
+  State<TechnicianProfilesScreen> createState() =>
+      _TechnicianProfilesScreenState();
+}
 
+class _TechnicianProfilesScreenState extends State<TechnicianProfilesScreen> {
+  late Future<List<Technician>> _techniciansFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _techniciansFuture = _fetchTechniciansFromFirestore();
+  }
+
+  Future<List<Technician>> _fetchTechniciansFromFirestore() async {
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('technicians')
+          .get();
+
+      print('DEBUG: Found ${snapshot.docs.length} technicians');
+
+      final technicians = snapshot.docs.map((doc) {
+        final data = doc.data();
+        print('DEBUG: Doc keys = ${data.keys.toList()}');
+        print('DEBUG: Doc data = $data');
+        final tech = Technician.fromFirestore(data, doc.id);
+        print(
+          'DEBUG: Technician loaded - Name: ${tech.name}, Photo: ${tech.imageUrl}, Role: ${tech.role}, Status: ${tech.status}',
+        );
+        return tech;
+      }).toList();
+
+      print(
+        'DEBUG: Loaded technicians: ${technicians.map((t) => '${t.name} (${t.imageUrl})').toList()}',
+      );
+      return technicians;
+    } catch (e) {
+      print('ERROR fetching technicians: $e');
+      return [];
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final user = FirebaseAuth.instance.currentUser;
 
@@ -209,7 +78,47 @@ class TechnicianProfilesScreen extends StatelessWidget {
       ),
       body: user == null
           ? _buildGuestView(context)
-          : _buildLoggedInView(technicians, isDark),
+          : FutureBuilder<List<Technician>>(
+              future: _techniciansFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text('Error loading technicians: ${snapshot.error}'),
+                  );
+                }
+
+                final technicians = snapshot.data ?? [];
+
+                if (technicians.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.people_outline_rounded,
+                          size: 80,
+                          color: isDark ? Colors.grey[600] : Colors.grey[400],
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          'No technicians available',
+                          style: AppTextStyle.withColor(
+                            AppTextStyle.h2,
+                            Theme.of(context).textTheme.bodyLarge!.color!,
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return _buildLoggedInView(technicians, isDark);
+              },
+            ),
       bottomNavigationBar: const CustomBottomNavbar(),
     );
   }
@@ -304,8 +213,42 @@ class _TechnicianCard extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 30,
-                  backgroundImage: AssetImage(technician.imageUrl),
                   backgroundColor: isDark ? Colors.grey[700] : Colors.grey[200],
+                  child:
+                      technician.imageUrl.isEmpty ||
+                          technician.imageUrl == 'assets/images/logo.png'
+                      ? Icon(
+                          Icons.person,
+                          size: 30,
+                          color: isDark ? Colors.grey[400] : Colors.grey[600],
+                        )
+                      : technician.imageUrl.startsWith('http')
+                      ? Image.network(
+                          technician.imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Icon(
+                              Icons.person,
+                              size: 30,
+                              color: isDark
+                                  ? Colors.grey[400]
+                                  : Colors.grey[600],
+                            );
+                          },
+                        )
+                      : Image.asset(
+                          technician.imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Icon(
+                              Icons.person,
+                              size: 30,
+                              color: isDark
+                                  ? Colors.grey[400]
+                                  : Colors.grey[600],
+                            );
+                          },
+                        ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -319,7 +262,34 @@ class _TechnicianCard extends StatelessWidget {
                           Theme.of(context).textTheme.bodyLarge!.color!,
                         ),
                       ),
+                      const SizedBox(height: 4),
+                      Text(
+                        technician.role,
+                        style: AppTextStyle.withColor(
+                          AppTextStyle.bodySmall,
+                          isDark ? Colors.grey[400]! : Colors.grey[600]!,
+                        ),
+                      ),
                     ],
+                  ),
+                ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: technician.status == 'active'
+                        ? Colors.green.withOpacity(0.2)
+                        : Colors.red.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    technician.status,
+                    style: AppTextStyle.withColor(
+                      AppTextStyle.bodySmall,
+                      technician.status == 'active' ? Colors.green : Colors.red,
+                    ),
                   ),
                 ),
               ],

@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:capstone/models/walkin.dart';
 import 'package:capstone/services/walkin_service.dart';
 import 'package:capstone/screens/signup/signup_screen.dart';
@@ -18,8 +17,6 @@ class OnsiteServices extends StatefulWidget {
 
 class _OnsiteServicesState extends State<OnsiteServices> {
   final WalkinService _walkinService = WalkinService();
-  Timer? _refreshTimer;
-  int _refreshKey = 0; // Key to force stream rebuild
 
   @override
   void initState() {
@@ -28,34 +25,12 @@ class _OnsiteServicesState extends State<OnsiteServices> {
 
   @override
   void dispose() {
-    _refreshTimer?.cancel();
     super.dispose();
-  }
-
-  /// Triggers a refresh after delay to show updated bookings
-  void _startAutoRefresh({int delaySeconds = 30}) {
-    _refreshTimer?.cancel();
-    _refreshTimer = Timer(Duration(seconds: delaySeconds), () {
-      // Force stream rebuild by changing key
-      if (mounted) {
-        debugPrint(
-          'Auto-refreshing after $delaySeconds seconds to show updated bookings',
-        );
-        setState(() {
-          _refreshKey++;
-        });
-      }
-    });
   }
 
   /// Manual refresh triggered by user
   Future<void> _manualRefresh() async {
     debugPrint('Manual refresh triggered');
-    if (mounted) {
-      setState(() {
-        _refreshKey++;
-      });
-    }
   }
 
   @override
@@ -146,7 +121,6 @@ class _OnsiteServicesState extends State<OnsiteServices> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: StreamBuilder<List<Walkin>>(
-            key: ValueKey(_refreshKey),
             stream: _walkinService.getWalkinBookingsStream(limit: 4),
             builder: (context, snapshot) {
               // Loading state
@@ -354,61 +328,43 @@ class _OnsiteServicesState extends State<OnsiteServices> {
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Walk-In Customers'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const SizedBox(height: 8),
-                _buildDetailRow('Service', serviceDisplay),
-                const SizedBox(height: 8),
-                _buildDetailRow('Status', walkin.status),
-                const SizedBox(height: 8),
-                _buildDetailRow('Date', walkin.bookingDate),
-                const SizedBox(height: 8),
-                _buildDetailRow('Time', walkin.bookingTime),
-                const SizedBox(height: 8),
-                _buildDetailRow('Price', '${walkin.price.toStringAsFixed(2)}'),
-              ],
-            ),
-          ),
-          actions: [
-            if (walkin.status == 'Pending' || walkin.status == 'In Progress')
-              ElevatedButton(
-                onPressed: () async {
-                  // Mark as completed
-                  await _walkinService.updateBookingStatus(
-                    walkin.id!,
-                    'Completed',
-                  );
-
-                  if (context.mounted) {
-                    Navigator.of(context).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                          'Marked as Completed. Refreshing in 10 seconds...',
-                        ),
-                        duration: Duration(seconds: 2),
-                      ),
-                    );
-
-                    // Start auto-refresh after 10 seconds to show updated bookings
-                    _startAutoRefresh(delaySeconds: 10);
-                  }
-                },
-                child: const Text('Mark Completed'),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Walk-In Customers'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 8),
+                    _buildDetailRow('Service', serviceDisplay),
+                    const SizedBox(height: 8),
+                    _buildDetailRow('Status', walkin.status),
+                    const SizedBox(height: 8),
+                    _buildDetailRow('Date', walkin.bookingDate),
+                    const SizedBox(height: 8),
+                    _buildDetailRow('Time', walkin.bookingTime),
+                    const SizedBox(height: 8),
+                    _buildDetailRow(
+                      'Price',
+                      '${walkin.price.toStringAsFixed(2)}',
+                    ),
+                  ],
+                ),
               ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('OK'),
-            ),
-          ],
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                  child: const Text('OK'),
+                ),
+              ],
+            );
+          },
         );
       },
     );

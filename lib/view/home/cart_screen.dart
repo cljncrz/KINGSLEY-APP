@@ -95,8 +95,9 @@ class _CartScreenState extends State<CartScreen> {
     ];
 
     return {
-      // For demonstration, making slots available for the next 7 days.
+      // For demonstration, making slots available for today and the next 7 days.
       // In a real app, this data would come from your admin panel.
+      today: generatedSlots,
       today.add(const Duration(days: 1)): generatedSlots,
       today.add(const Duration(days: 2)): generatedSlots,
       today.add(const Duration(days: 3)): generatedSlots,

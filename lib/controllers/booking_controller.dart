@@ -190,6 +190,88 @@ class BookingController extends GetxController {
     }
   }
 
+  /// Processes payment when booking is approved by admin.
+  /// This should be called after admin approves the booking (status = 'Approved').
+  Future<void> processApprovedBookingPayment({
+    required String bookingId,
+    required Booking booking,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      Get.snackbar("Error", "You must be logged in to process payment.");
+      return;
+    }
+
+    final bookingRef = _db.collection('bookings').doc(bookingId);
+
+    try {
+      await _db.runTransaction((tx) async {
+        final bookingSnap = await tx.get(bookingRef);
+
+        if (!bookingSnap.exists) {
+          throw FirebaseException(
+            plugin: 'firestore',
+            code: 'not-found',
+            message: 'Booking not found.',
+          );
+        }
+
+        final bookingData = bookingSnap.data();
+        final ownerId = bookingData?['userId']?.toString();
+        final currentStatus =
+            bookingData?['status']?.toString().toLowerCase() ?? '';
+
+        // Verify the user owns this booking
+        if (ownerId != user.uid) {
+          throw FirebaseException(
+            plugin: 'firestore',
+            code: 'permission-denied',
+            message: 'You are not the owner of this booking.',
+          );
+        }
+
+        // Only allow payment for approved bookings
+        if (!currentStatus.contains('approv')) {
+          throw FirebaseException(
+            plugin: 'firestore',
+            code: 'failed-precondition',
+            message: 'Only approved bookings can be paid.',
+          );
+        }
+
+        // Update booking status to "Paid" or "In Progress"
+        // This marks that payment has been processed
+        tx.update(bookingRef, {
+          'status': 'Paid',
+          'isPaid': true,
+          'paidAt': FieldValue.serverTimestamp(),
+          'paymentMethod': booking.paymentMethod,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      });
+
+      // Create payment confirmation notification
+      await _createPaymentNotification(booking, bookingId);
+
+      Get.snackbar(
+        "Success",
+        "Payment processed successfully!",
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+      );
+    } catch (e) {
+      Get.snackbar(
+        "Error",
+        "Failed to process payment. Please try again.",
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      debugPrint("Error processing payment: $e");
+    }
+  }
+
   /// Cancels an existing booking.
   Future<void> cancelBooking({
     required String bookingId,

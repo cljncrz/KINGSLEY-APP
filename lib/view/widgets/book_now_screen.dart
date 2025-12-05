@@ -122,6 +122,7 @@ class _BookNowScreenState extends State<BookNowScreen> {
       ),
     ];
     return {
+      today: slots,
       today.add(const Duration(days: 1)): slots,
       today.add(const Duration(days: 2)): slots,
       today.add(const Duration(days: 3)): slots,

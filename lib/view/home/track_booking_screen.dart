@@ -420,8 +420,7 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
               ),
             ),
             const Divider(height: 24),
-            if (booking.status == 'Pending' ||
-                _isApprovedStatus(booking.status))
+            if (booking.status == 'Pending')
               Column(
                 children: [
                   const SizedBox(height: 16),
@@ -432,6 +431,56 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
                       onPressed: () =>
                           Get.to(() => ViewDetailsScreen(booking: booking)),
                     ),
+                  ),
+                ],
+              )
+            else if (_isApprovedStatus(booking.status))
+              Column(
+                children: [
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () =>
+                              Get.to(() => ViewDetailsScreen(booking: booking)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Theme.of(context).primaryColor,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text(
+                            'Details',
+                            style: AppTextStyle.withColor(
+                              AppTextStyle.buttonMedium,
+                              Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => _showPaymentDialog(context, booking),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.green,
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                          child: Text(
+                            'Pay Now',
+                            style: AppTextStyle.withColor(
+                              AppTextStyle.buttonMedium,
+                              Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               )
@@ -626,6 +675,154 @@ class _TrackBookingScreenState extends State<TrackBookingScreen>
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  void _showPaymentDialog(BuildContext context, Booking booking) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bookingController = Get.find<BookingController>();
+
+    Get.dialog(
+      AlertDialog(
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        contentPadding: const EdgeInsets.all(24),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(100),
+              ),
+              child: Icon(
+                Icons.payment_outlined,
+                color: Colors.green[400],
+                size: 32,
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Process Payment',
+              textAlign: TextAlign.center,
+              style: AppTextStyle.withColor(
+                AppTextStyle.h3,
+                Theme.of(context).textTheme.bodyLarge!.color!,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: isDark ? Colors.grey[900] : Colors.grey[100],
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Services:',
+                        style: AppTextStyle.bodySmall.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        booking.serviceNames.join(', '),
+                        style: AppTextStyle.bodySmall,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Amount:',
+                        style: AppTextStyle.bodySmall.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        '₱${booking.price.toStringAsFixed(2)}',
+                        style: AppTextStyle.bodySmall.copyWith(
+                          color: Colors.green,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Payment Method:',
+                        style: AppTextStyle.bodySmall.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        booking.paymentMethod ?? 'Not specified',
+                        style: AppTextStyle.bodySmall,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'Click "Confirm Payment" to complete the transaction.',
+              textAlign: TextAlign.center,
+              style: AppTextStyle.withColor(
+                AppTextStyle.bodySmall,
+                isDark ? Colors.grey[400]! : Colors.grey[600]!,
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+        ),
+        actions: <Widget>[
+          ElevatedButton(
+            onPressed: () => Get.back(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.grey[600],
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text(
+              'Cancel',
+              style: AppTextStyle.buttonMedium.copyWith(color: Colors.white),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (booking.id != null) {
+                await bookingController.processApprovedBookingPayment(
+                  bookingId: booking.id!,
+                  booking: booking,
+                );
+                Get.back();
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.green,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text(
+              'Confirm Payment',
+              style: AppTextStyle.buttonMedium.copyWith(color: Colors.white),
+            ),
+          ),
+        ],
+        actionsAlignment: MainAxisAlignment.center,
       ),
     );
   }
