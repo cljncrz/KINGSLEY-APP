@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:capstone/screens/signup/signup_screen.dart';
 
 class DamageReportScreen extends StatefulWidget {
@@ -57,38 +56,37 @@ class _DamageReportScreenState extends State<DamageReportScreen> {
       Get.snackbar(
         'Limit Reached',
         'You can only upload a maximum of 10 photos.',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      return;
-    }
-
-    // Request photo permission
-    final photoStatus = await Permission.photos.request();
-    if (!photoStatus.isGranted) {
-      Get.snackbar(
-        'Permission Denied',
-        'Gallery access is required to pick photos.',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
       return;
     }
 
     try {
+      debugPrint('Attempting to pick images from gallery...');
+
+      // ImagePicker handles permissions automatically on Android
       final List<XFile> pickedFiles = await _picker.pickMultiImage(
         imageQuality: 80, // To reduce file size
       );
+
+      debugPrint('Picked ${pickedFiles.length} images');
 
       if (pickedFiles.isNotEmpty) {
         setState(() {
           _images.addAll(pickedFiles.take(remainingImages));
         });
+        Get.snackbar(
+          'Success',
+          '${pickedFiles.length} image(s) added',
+          snackPosition: SnackPosition.TOP,
+        );
       }
     } catch (e) {
-      // Handle potential errors, e.g., permissions denied
+      debugPrint('Error picking images: $e');
       Get.snackbar(
         'Error',
         'Could not pick images: $e',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
     }
   }
@@ -98,23 +96,15 @@ class _DamageReportScreenState extends State<DamageReportScreen> {
       Get.snackbar(
         'Limit Reached',
         'You can only upload a maximum of 10 photos.',
-        snackPosition: SnackPosition.BOTTOM,
-      );
-      return;
-    }
-
-    // Request camera permission
-    final cameraStatus = await Permission.camera.request();
-    if (!cameraStatus.isGranted) {
-      Get.snackbar(
-        'Permission Denied',
-        'Camera access is required to take photos.',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
       return;
     }
 
     try {
+      debugPrint('Attempting to take photo from camera...');
+
+      // ImagePicker handles permissions automatically on Android
       final XFile? pickedFile = await _picker.pickImage(
         source: ImageSource.camera,
         imageQuality: 80,
@@ -124,12 +114,18 @@ class _DamageReportScreenState extends State<DamageReportScreen> {
         setState(() {
           _images.add(pickedFile);
         });
+        Get.snackbar(
+          'Success',
+          'Photo captured',
+          snackPosition: SnackPosition.TOP,
+        );
       }
     } catch (e) {
+      debugPrint('Error taking photo: $e');
       Get.snackbar(
         'Error',
         'Could not take photo: $e',
-        snackPosition: SnackPosition.BOTTOM,
+        snackPosition: SnackPosition.TOP,
       );
     }
   }
@@ -156,7 +152,7 @@ class _DamageReportScreenState extends State<DamageReportScreen> {
           ),
         ],
       ),
-      backgroundColor: Theme.of(context).canvasColor,
+      backgroundColor: Colors.white,
     );
   }
 

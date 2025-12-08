@@ -75,43 +75,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _pickImage() async {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    // Request photo/gallery permission
-    final photoStatus = await Permission.photos.request();
+    debugPrint('Starting image picker...');
 
-    if (!photoStatus.isGranted) {
-      Get.snackbar(
-        'Permission Denied',
-        'Gallery access is required to pick a profile photo.',
-        titleText: Text(
-          'Permission Denied',
-          style: AppTextStyle.withColor(
-            AppTextStyle.bodySmall,
-            isDark ? const Color(0xFF7F1618) : Colors.white,
-          ),
-        ),
-        messageText: Text(
-          'Gallery access is required to pick a profile photo.',
-          style: AppTextStyle.withColor(
-            AppTextStyle.bodySmall,
-            isDark ? const Color(0xFF7F1618) : Colors.white,
-          ),
-        ),
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: isDark ? Colors.white : const Color(0xFF7F1618),
-      );
-      return;
-    }
-
+    // Try to pick image directly first - many devices grant this implicitly
     final ImagePicker picker = ImagePicker();
     try {
+      debugPrint('Attempting to open gallery...');
       final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
       if (image != null) {
+        debugPrint('Image selected: ${image.path}');
         setState(() {
           _selectedImage = File(image.path);
         });
       } else {
         // User canceled the picker
+        debugPrint('User canceled image selection');
         Get.snackbar(
           'No Image Selected',
           'You did not select an image.',
@@ -135,7 +114,109 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       }
     } catch (e) {
       debugPrint('Error picking image: $e');
-      Get.snackbar('Error', 'Failed to pick image: $e');
+
+      // If image picker fails, try requesting permissions manually
+      if (e.toString().contains('permission') ||
+          e.toString().contains('Permission') ||
+          e.toString().contains('denied')) {
+        debugPrint('Permission error detected, requesting permissions...');
+        await _requestMediaPermissions();
+      } else {
+        Get.snackbar(
+          'Error',
+          'Failed to open gallery. Please check your permissions.',
+          titleText: Text(
+            'Error',
+            style: AppTextStyle.withColor(
+              AppTextStyle.bodySmall,
+              isDark ? const Color(0xFF7F1618) : Colors.white,
+            ),
+          ),
+          messageText: Text(
+            'Failed to open gallery. Please check your permissions.',
+            style: AppTextStyle.withColor(
+              AppTextStyle.bodySmall,
+              isDark ? const Color(0xFF7F1618) : Colors.white,
+            ),
+          ),
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: isDark ? Colors.white : const Color(0xFF7F1618),
+        );
+      }
+    }
+  }
+
+  Future<void> _requestMediaPermissions() async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    try {
+      // For Android 13+, try READ_MEDIA_IMAGES first
+      PermissionStatus status = await Permission.storage.request();
+      debugPrint('Storage permission status: $status');
+
+      if (status.isDenied) {
+        Get.snackbar(
+          'Permission Denied',
+          'Gallery access is required to pick a profile photo.',
+          titleText: Text(
+            'Permission Denied',
+            style: AppTextStyle.withColor(
+              AppTextStyle.bodySmall,
+              isDark ? const Color(0xFF7F1618) : Colors.white,
+            ),
+          ),
+          messageText: Text(
+            'Please tap Allow when prompted.',
+            style: AppTextStyle.withColor(
+              AppTextStyle.bodySmall,
+              isDark ? const Color(0xFF7F1618) : Colors.white,
+            ),
+          ),
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: isDark ? Colors.white : const Color(0xFF7F1618),
+        );
+        return;
+      } else if (status.isPermanentlyDenied) {
+        Get.dialog(
+          AlertDialog(
+            title: const Text('Gallery Permission Required'),
+            content: const Text(
+              'Gallery access has been permanently denied. Please enable it in app settings.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Get.back(),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  openAppSettings();
+                  Get.back();
+                },
+                child: const Text('Open Settings'),
+              ),
+            ],
+          ),
+        );
+        return;
+      }
+
+      // If permission is granted, try picking image again
+      if (status.isGranted) {
+        final ImagePicker picker = ImagePicker();
+        final XFile? image = await picker.pickImage(
+          source: ImageSource.gallery,
+        );
+
+        if (image != null) {
+          setState(() {
+            _selectedImage = File(image.path);
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Error requesting permissions: $e');
+      Get.snackbar('Error', 'Failed to request permissions: $e');
     }
   }
 
