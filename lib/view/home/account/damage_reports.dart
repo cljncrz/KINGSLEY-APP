@@ -128,6 +128,10 @@ class _DamageReportsState extends State<DamageReports> {
     final description = report['description'] ?? 'No description';
     final createdAt = report['createdAt'] as Timestamp?;
     final imageUrls = List<String>.from(report['imageUrls'] ?? []);
+    final hasAdminResponse =
+        report['adminResponse'] != null &&
+        (report['adminResponse'] as String).isNotEmpty &&
+        report['adminResponse'] != 'Pending review';
 
     Color statusColor;
     switch (status.toLowerCase()) {
@@ -265,6 +269,34 @@ class _DamageReportsState extends State<DamageReports> {
                   ),
                 ),
               ],
+              if (hasAdminResponse) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.blue, width: 1),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.done_all, color: Colors.blue, size: 14),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Admin Replied',
+                        style: AppTextStyle.bodySmall.copyWith(
+                          color: Colors.blue,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -285,6 +317,11 @@ class _DamageReportsState extends State<DamageReports> {
     final description = report['description'] ?? 'No description';
     final createdAt = report['createdAt'] as Timestamp?;
     final imageUrls = List<String>.from(report['imageUrls'] ?? []);
+
+    // Admin response fields
+    final adminResponse = report['adminResponse'] ?? 'Pending review';
+    final adminResponseUpdatedAt = report['adminResponseUpdatedAt'];
+    final adminResponseUpdatedBy = report['adminResponseUpdatedBy'] ?? 'Admin';
 
     Color statusColor;
     switch (status.toLowerCase()) {
@@ -407,6 +444,48 @@ class _DamageReportsState extends State<DamageReports> {
                     ),
                     const SizedBox(height: 8),
                     Text(description, style: AppTextStyle.bodyMedium),
+                    // Admin Response Section
+                    const SizedBox(height: 24),
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.blue.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: Colors.blue, width: 1.5),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.admin_panel_settings,
+                                color: Colors.blue,
+                                size: 20,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Admin Response',
+                                style: AppTextStyle.h3.copyWith(
+                                  color: Colors.blue,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          Text(adminResponse, style: AppTextStyle.bodyMedium),
+                          if (adminResponseUpdatedAt != null) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'Replied by $adminResponseUpdatedBy • ${_formatTimestampOrString(adminResponseUpdatedAt)}',
+                              style: AppTextStyle.bodySmall.copyWith(
+                                color: isDark ? Colors.white54 : Colors.black45,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
                     if (imageUrls.isNotEmpty) ...[
                       const SizedBox(height: 24),
                       Text(
@@ -605,5 +684,22 @@ class _DamageReportsState extends State<DamageReports> {
     } else {
       return DateFormat('MMM d, yyyy').format(date);
     }
+  }
+
+  String _formatTimestampOrString(dynamic value) {
+    if (value == null) return 'Unknown';
+    if (value is Timestamp) {
+      return _formatTimestamp(value);
+    } else if (value is String) {
+      // Try to parse ISO string format like "2025-12-08T16:45:51.969Z"
+      try {
+        final dateTime = DateTime.parse(value);
+        final timestamp = Timestamp.fromDate(dateTime);
+        return _formatTimestamp(timestamp);
+      } catch (e) {
+        return value; // Return as-is if parsing fails
+      }
+    }
+    return value.toString();
   }
 }

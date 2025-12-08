@@ -14,6 +14,7 @@ class ChatController extends GetxController {
   final RxBool isLoading = false.obs;
 
   StreamSubscription? _chatRoomsSubscription;
+  final Map<String, StreamSubscription> _messageSubscriptions = {};
 
   @override
   void onInit() {
@@ -24,6 +25,11 @@ class ChatController extends GetxController {
   @override
   void onClose() {
     _chatRoomsSubscription?.cancel();
+    // Cancel all message subscriptions
+    for (var subscription in _messageSubscriptions.values) {
+      subscription.cancel();
+    }
+    _messageSubscriptions.clear();
     super.onClose();
   }
 
@@ -55,6 +61,11 @@ class ChatController extends GetxController {
                 .map((doc) => ChatRoom.fromFirestore(doc))
                 .toList();
             isLoading.value = false;
+
+            // Set up listeners for admin messages in each chat room
+            for (var doc in snapshot.docs) {
+              _listenToAdminMessagesInChatRoom(doc.id);
+            }
           },
           onError: (error) {
             debugPrint('❌ Error listening to chat rooms: $error');
@@ -62,6 +73,81 @@ class ChatController extends GetxController {
             isLoading.value = false;
           },
         );
+  }
+
+  /// Listen for new admin messages in a chat room and update chat_rooms collection
+  void _listenToAdminMessagesInChatRoom(String chatRoomId) {
+    // Only set up listener once per chat room
+    if (_messageSubscriptions.containsKey(chatRoomId)) {
+      return;
+    }
+
+    _messageSubscriptions[chatRoomId] = _db
+        .collection('chat_rooms')
+        .doc(chatRoomId)
+        .collection('messages')
+        .where('senderRole', isEqualTo: 'admin')
+        .orderBy('createdAt', descending: true)
+        .limit(1)
+        .snapshots()
+        .listen(
+          (snapshot) {
+            if (snapshot.docs.isNotEmpty) {
+              final adminMessage = ChatMessage.fromFirestore(
+                snapshot.docs.first,
+              );
+              debugPrint(
+                '🔔 New admin message detected in chat room: $chatRoomId',
+              );
+              debugPrint('📝 Message: ${adminMessage.text}');
+
+              // Update the chat room document to reflect the admin message
+              _updateChatRoomWithAdminMessage(chatRoomId, adminMessage);
+            }
+          },
+          onError: (error) {
+            debugPrint(
+              '❌ Error listening to admin messages in $chatRoomId: $error',
+            );
+          },
+        );
+  }
+
+  /// Update chat room document with latest admin message
+  Future<void> _updateChatRoomWithAdminMessage(
+    String chatRoomId,
+    ChatMessage adminMessage,
+  ) async {
+    try {
+      // Get current chat room to check if this message is newer
+      final chatRoomDoc = await _db
+          .collection('chat_rooms')
+          .doc(chatRoomId)
+          .get();
+
+      if (chatRoomDoc.exists) {
+        final currentLastMessageTime =
+            (chatRoomDoc.data()?['lastMessageTime'] as Timestamp?)?.toDate() ??
+            DateTime.fromMillisecondsSinceEpoch(0);
+
+        // Only update if this admin message is newer than the current last message
+        if (adminMessage.createdAt.isAfter(currentLastMessageTime)) {
+          await _db.collection('chat_rooms').doc(chatRoomId).update({
+            'lastMessage': adminMessage.text,
+            'lastMessageSenderId': adminMessage.senderId,
+            'lastMessageSenderRole': 'admin',
+            'lastMessageTime': Timestamp.fromDate(adminMessage.createdAt),
+            'unreadCount': (chatRoomDoc.data()?['unreadCount'] ?? 0) + 1,
+          });
+
+          debugPrint(
+            '✅ Updated chat room $chatRoomId with admin message: ${adminMessage.text}',
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error updating chat room with admin message: $e');
+    }
   }
 
   /// Get or create a chat room for the current user
@@ -193,11 +279,85 @@ class ChatController extends GetxController {
         .collection('messages')
         .orderBy('createdAt', descending: false)
         .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => ChatMessage.fromFirestore(doc))
-              .toList(),
-        );
+        .map((snapshot) {
+          debugPrint('📨 Messages snapshot: ${snapshot.docs.length} messages');
+          final messages = <ChatMessage>[];
+
+          for (var doc in snapshot.docs) {
+            try {
+              final data = doc.data();
+              debugPrint('📄 Raw doc data: $data');
+
+              // Check if document has data
+              if (data.isEmpty) {
+                debugPrint('❌ Document ${doc.id} has no data');
+                continue;
+              }
+
+              final message = ChatMessage.fromFirestore(doc);
+              messages.add(message);
+              debugPrint(
+                '✅ Message: ${message.senderRole} - "${message.text}" at ${message.createdAt}',
+              );
+            } catch (e) {
+              debugPrint('❌ Error parsing message ${doc.id}: $e');
+              try {
+                debugPrint('📝 Raw data: ${doc.data()}');
+              } catch (e2) {
+                debugPrint('📝 Could not retrieve raw data: $e2');
+              }
+            }
+          }
+
+          debugPrint('📊 Total messages loaded: ${messages.length}');
+          return messages;
+        });
+  }
+
+  /// Add a method to properly create admin messages (can be called from backend/cloud function)
+  Future<bool> createAdminMessage({
+    required String chatRoomId,
+    required String text,
+    String adminId = 'admin',
+    String adminName = 'Kingsley Carwash Admin',
+  }) async {
+    if (text.trim().isEmpty) return false;
+
+    try {
+      // Create the admin message
+      final messageData = ChatMessage(
+        id: '', // Firestore will generate this
+        chatRoomId: chatRoomId,
+        senderId: adminId,
+        senderName: adminName,
+        senderRole: 'admin',
+        text: text.trim(),
+        createdAt: DateTime.now(),
+        isRead: false,
+      ).toFirestore();
+
+      // Add message to subcollection
+      await _db
+          .collection('chat_rooms')
+          .doc(chatRoomId)
+          .collection('messages')
+          .add(messageData);
+
+      debugPrint('✅ Admin message created: "$text"');
+
+      // Update chat room's last message
+      await _db.collection('chat_rooms').doc(chatRoomId).update({
+        'lastMessage': text.trim(),
+        'lastMessageSenderId': adminId,
+        'lastMessageSenderRole': 'admin',
+        'lastMessageTime': FieldValue.serverTimestamp(),
+      });
+
+      return true;
+    } catch (e) {
+      debugPrint('❌ Error creating admin message: $e');
+      return false;
+    }
   }
 
   /// Mark messages as read when user opens the chat
@@ -215,19 +375,97 @@ class ChatController extends GetxController {
           .where('senderRole', isEqualTo: 'admin')
           .get();
 
-      // Mark each message as read
-      final batch = _db.batch();
-      for (var doc in unreadMessages.docs) {
-        batch.update(doc.reference, {'isRead': true});
+      if (unreadMessages.docs.isNotEmpty) {
+        // Mark each message as read
+        final batch = _db.batch();
+        for (var doc in unreadMessages.docs) {
+          batch.update(doc.reference, {'isRead': true});
+        }
+        await batch.commit();
+
+        debugPrint(
+          '📖 Marked ${unreadMessages.docs.length} messages as read in chat room $chatRoomId',
+        );
       }
-      await batch.commit();
 
       // Reset unread count in chat room
       await _db.collection('chat_rooms').doc(chatRoomId).update({
         'unreadCount': 0,
       });
+
+      debugPrint('✅ Reset unread count for chat room $chatRoomId');
     } catch (e) {
       debugPrint('Error marking messages as read: $e');
+    }
+  }
+
+  /// Repair messages missing createdAt timestamp (called when messages aren't displaying)
+  Future<void> repairMessagesInChatRoom(String chatRoomId) async {
+    try {
+      debugPrint('🔧 Repairing messages in chat room: $chatRoomId');
+
+      final messagesSnapshot = await _db
+          .collection('chat_rooms')
+          .doc(chatRoomId)
+          .collection('messages')
+          .get();
+
+      debugPrint('🔍 Found ${messagesSnapshot.docs.length} messages to check');
+
+      final batch = _db.batch();
+      int fixedCount = 0;
+
+      for (var doc in messagesSnapshot.docs) {
+        final data = doc.data();
+        final createdAt = data['createdAt'];
+
+        // If createdAt is missing or null, add it
+        if (createdAt == null) {
+          debugPrint('⚠️  Message ${doc.id} missing createdAt, setting to now');
+          batch.update(doc.reference, {
+            'createdAt': FieldValue.serverTimestamp(),
+          });
+          fixedCount++;
+        }
+
+        // Ensure all required fields exist
+        final updateData = <String, dynamic>{};
+
+        if (!data.containsKey('senderId') || data['senderId'] == null) {
+          updateData['senderId'] = data['senderRole'] == 'admin'
+              ? 'admin'
+              : 'unknown-user';
+        }
+
+        if (!data.containsKey('senderName') || data['senderName'] == null) {
+          updateData['senderName'] = data['senderRole'] == 'admin'
+              ? 'Admin'
+              : 'User';
+        }
+
+        if (!data.containsKey('senderRole') || data['senderRole'] == null) {
+          updateData['senderRole'] = 'user';
+        }
+
+        if (!data.containsKey('text') || data['text'] == null) {
+          updateData['text'] = '';
+        }
+
+        if (updateData.isNotEmpty) {
+          batch.update(doc.reference, updateData);
+          debugPrint('✏️  Updated message ${doc.id} with missing fields');
+        }
+      }
+
+      if (fixedCount > 0 ||
+          messagesSnapshot.docs.any(
+            (doc) => !doc.data().containsKey('createdAt'),
+          )) {
+        await batch.commit();
+        debugPrint('✅ Repaired $fixedCount messages in $chatRoomId');
+      }
+    } catch (e) {
+      debugPrint('❌ Error repairing messages: $e');
     }
   }
 

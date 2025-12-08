@@ -1,5 +1,6 @@
 import 'package:capstone/controllers/theme_controller.dart';
 import 'package:capstone/controllers/notification_controller.dart';
+import 'package:capstone/controllers/chat_controller.dart';
 import 'package:capstone/utils/app_textstyles.dart';
 import 'package:capstone/view/home/chat_screen.dart';
 import 'package:capstone/view/home/cart_screen.dart';
@@ -66,19 +67,22 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       const SizedBox(width: 9),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Hello, Welcome!',
-                            style: AppTextStyle.withColor(
-                              AppTextStyle.bodyMedium,
-                              isDark ? Colors.white : Colors.black,
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Hello, Welcome!',
+                              style: AppTextStyle.withColor(
+                                AppTextStyle.bodyMedium,
+                                isDark ? Colors.white : Colors.black,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                      const SizedBox(),
                       // bookcart icon
                       IconButton(
                         padding: EdgeInsets.zero,
@@ -134,7 +138,40 @@ class _HomeScreenState extends State<HomeScreen> {
                         padding: EdgeInsets.zero,
                         constraints: const BoxConstraints(),
                         onPressed: () => Get.to(() => const AiChatbotScreen()),
-                        icon: const Icon(Icons.chat_outlined),
+                        icon: Obx(() {
+                          final chatController = Get.find<ChatController>();
+                          final unreadCount = chatController.totalUnreadCount;
+                          return Stack(
+                            children: [
+                              const Icon(Icons.chat_outlined),
+                              if (unreadCount > 0)
+                                Positioned(
+                                  right: 0,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(1),
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    constraints: const BoxConstraints(
+                                      minWidth: 18,
+                                      minHeight: 18,
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        '$unreadCount',
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          );
+                        }),
                       ),
                     ],
                   ),

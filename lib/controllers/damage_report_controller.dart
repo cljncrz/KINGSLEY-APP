@@ -14,6 +14,71 @@ class DamageReportController extends GetxController {
   final _auth = FirebaseAuth.instance;
   final isLoading = false.obs;
 
+  // Track which reports have been notified to avoid duplicate notifications
+  final Set<String> _notifiedReports = {};
+
+  @override
+  void onInit() {
+    super.onInit();
+    _listenForAdminReplies();
+  }
+
+  // Listen for admin replies in real-time
+  void _listenForAdminReplies() {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    _db
+        .collection('damage_reports')
+        .where('userId', isEqualTo: user.uid)
+        .snapshots()
+        .listen((snapshot) {
+          for (final doc in snapshot.docs) {
+            final reportId = doc.id;
+            final data = doc.data();
+
+            // Check if admin response exists and we haven't already notified
+            if (data['adminResponse'] != null &&
+                (data['adminResponse'] as String).isNotEmpty &&
+                data['adminResponse'] != 'Pending review' &&
+                !_notifiedReports.contains(reportId)) {
+              // Mark as notified
+              _notifiedReports.add(reportId);
+
+              // Send notification
+              _notifyAdminReply(
+                reportId: reportId,
+                adminResponse: data['adminResponse'] as String,
+              );
+            }
+          }
+        });
+  }
+
+  // Notify user about admin reply
+  Future<void> _notifyAdminReply({
+    required String reportId,
+    required String adminResponse,
+  }) async {
+    try {
+      final notificationController = Get.find<NotificationController>();
+
+      // Create in-app notification
+      await notificationController.createNotification(
+        title: 'Damage Report Update',
+        body: adminResponse.length > 100
+            ? '${adminResponse.substring(0, 100)}...'
+            : adminResponse,
+        type: 'damage_report_reply',
+        bookingId: reportId,
+      );
+
+      debugPrint('✅ Notified user about admin reply for report: $reportId');
+    } catch (e) {
+      debugPrint('Error creating admin reply notification: $e');
+    }
+  }
+
   Future<bool> submitReport({
     required String date,
     required String location,

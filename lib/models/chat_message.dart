@@ -25,11 +25,19 @@ class ChatMessage {
   /// Create ChatMessage from Firestore document
   factory ChatMessage.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+
+    // Ensure senderId has a proper fallback
+    final senderId =
+        data['senderId'] ??
+        (data['senderRole'] == 'admin' ? 'admin' : 'unknown');
+
     return ChatMessage(
       id: doc.id,
       chatRoomId: data['chatRoomId'] ?? '',
-      senderId: data['senderId'] ?? '',
-      senderName: data['senderName'] ?? 'Unknown',
+      senderId: senderId,
+      senderName:
+          data['senderName'] ??
+          (data['senderRole'] == 'admin' ? 'Admin' : 'User'),
       senderRole: data['senderRole'] ?? 'user',
       text: data['text'] ?? '',
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),

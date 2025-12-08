@@ -27,6 +27,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     // Mark messages as read when user opens the chat
     _chatController.markMessagesAsRead(widget.chatRoomId);
 
+    // Repair any messages that might be missing timestamps
+    _chatController.repairMessagesInChatRoom(widget.chatRoomId);
+
     // Auto-scroll to bottom when new messages arrive
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
