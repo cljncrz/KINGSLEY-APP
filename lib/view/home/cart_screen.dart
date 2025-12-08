@@ -94,16 +94,13 @@ class _CartScreenState extends State<CartScreen> {
       ),
     ];
 
-    return {
-      // For demonstration, making slots available for today and the next 7 days.
-      // In a real app, this data would come from your admin panel.
-      today: generatedSlots,
-      today.add(const Duration(days: 1)): generatedSlots,
-      today.add(const Duration(days: 2)): generatedSlots,
-      today.add(const Duration(days: 3)): generatedSlots,
-      today.add(const Duration(days: 4)): generatedSlots,
-      today.add(const Duration(days: 5)): generatedSlots,
-    };
+    // Generate available slots for 30 days instead of just 5 days
+    final Map<DateTime, List<TimeSlot>> availableSlots = {};
+    for (int i = 0; i < 30; i++) {
+      final date = DateTime(today.year, today.month, today.day + i);
+      availableSlots[date] = generatedSlots;
+    }
+    return availableSlots;
   }
 
   @override
@@ -376,6 +373,25 @@ class _CartScreenState extends State<CartScreen> {
               day.year == availableDate.year &&
               day.month == availableDate.month &&
               day.day == availableDate.day,
+        );
+      },
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: ThemeData(
+            useMaterial3: true,
+            colorScheme: ColorScheme.light(
+              primary: Theme.of(context).primaryColor,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Colors.black,
+            ),
+            textTheme: ThemeData.light().textTheme.apply(
+              bodyColor: Colors.black,
+              displayColor: Colors.black,
+            ),
+            dialogBackgroundColor: Colors.white,
+          ),
+          child: child ?? const SizedBox(),
         );
       },
     );

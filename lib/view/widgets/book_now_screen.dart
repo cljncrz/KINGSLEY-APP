@@ -121,17 +121,15 @@ class _BookNowScreenState extends State<BookNowScreen> {
         end: TimeOfDay(hour: 20, minute: 50),
       ),
     ];
-    return {
-      today: slots,
-      today.add(const Duration(days: 1)): slots,
-      today.add(const Duration(days: 2)): slots,
-      today.add(const Duration(days: 3)): slots,
-      today.add(const Duration(days: 4)): slots,
-      today.add(const Duration(days: 5)): slots,
-    };
+    // Generate available slots for 30 days instead of just 5 days
+    final Map<DateTime, List<TimeSlot>> availableSlots = {};
+    for (int i = 0; i < 30; i++) {
+      final date = DateTime(today.year, today.month, today.day + i);
+      availableSlots[date] = slots;
+    }
+    return availableSlots;
   }
 
-  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final user = FirebaseAuth.instance.currentUser;
@@ -307,6 +305,25 @@ class _BookNowScreenState extends State<BookNowScreen> {
               day.year == availableDate.year &&
               day.month == availableDate.month &&
               day.day == availableDate.day,
+        );
+      },
+      builder: (BuildContext context, Widget? child) {
+        return Theme(
+          data: ThemeData(
+            useMaterial3: true,
+            colorScheme: ColorScheme.light(
+              primary: Theme.of(context).primaryColor,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Colors.black,
+            ),
+            textTheme: ThemeData.light().textTheme.apply(
+              bodyColor: Colors.black,
+              displayColor: Colors.black,
+            ),
+            dialogBackgroundColor: Colors.white,
+          ),
+          child: child ?? const SizedBox(),
         );
       },
     );
