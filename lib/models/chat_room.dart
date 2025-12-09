@@ -29,12 +29,13 @@ class ChatRoom {
   /// Create ChatRoom from Firestore document
   factory ChatRoom.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    final lastMsg = data['lastMessage'] ?? '';
     return ChatRoom(
       id: doc.id,
       userId: data['userId'] ?? '',
       userName: data['userName'] ?? 'Unknown User',
       userEmail: data['userEmail'] ?? '',
-      lastMessage: data['lastMessage'] ?? 'No messages yet',
+      lastMessage: lastMsg,
       lastMessageSenderId: data['lastMessageSenderId'] ?? '',
       lastMessageSenderRole: data['lastMessageSenderRole'] ?? 'user',
       lastMessageTime:

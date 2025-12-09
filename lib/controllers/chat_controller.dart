@@ -49,30 +49,52 @@ class ChatController extends GetxController {
     isLoading.value = true;
 
     // Listen to chat rooms where the user is a participant
-    _chatRoomsSubscription = _db
-        .collection('chat_rooms')
-        .where('userId', isEqualTo: user.uid)
-        .orderBy('lastMessageTime', descending: true)
-        .snapshots()
-        .listen(
-          (snapshot) {
-            debugPrint('✅ Chat rooms loaded: ${snapshot.docs.length}');
-            chatRooms.value = snapshot.docs
-                .map((doc) => ChatRoom.fromFirestore(doc))
-                .toList();
-            isLoading.value = false;
+    try {
+      _chatRoomsSubscription = _db
+          .collection('chat_rooms')
+          .where('userId', isEqualTo: user.uid)
+          .snapshots()
+          .listen(
+            (snapshot) {
+              debugPrint('✅ Chat rooms loaded: ${snapshot.docs.length}');
 
-            // Set up listeners for admin messages in each chat room
-            for (var doc in snapshot.docs) {
-              _listenToAdminMessagesInChatRoom(doc.id);
-            }
-          },
-          onError: (error) {
-            debugPrint('❌ Error listening to chat rooms: $error');
-            debugPrint('❌ Error type: ${error.runtimeType}');
-            isLoading.value = false;
-          },
-        );
+              // Sort by lastMessageTime locally if needed
+              final rooms = snapshot.docs
+                  .map((doc) => ChatRoom.fromFirestore(doc))
+                  .toList();
+
+              // Sort by lastMessageTime descending
+              rooms.sort(
+                (a, b) => b.lastMessageTime.compareTo(a.lastMessageTime),
+              );
+
+              chatRooms.value = rooms;
+              isLoading.value = false;
+
+              debugPrint('📋 Chat rooms after sorting: ${chatRooms.length}');
+              for (var room in chatRooms) {
+                debugPrint('   - ${room.userName}');
+                debugPrint('     Last Message: "${room.lastMessage}"');
+                debugPrint('     Sender Role: ${room.lastMessageSenderRole}');
+                debugPrint('     Last Message Time: ${room.lastMessageTime}');
+              }
+
+              // Set up listeners for admin messages in each chat room
+              for (var doc in snapshot.docs) {
+                _listenToAdminMessagesInChatRoom(doc.id);
+              }
+            },
+            onError: (error) {
+              debugPrint('❌ Error listening to chat rooms: $error');
+              debugPrint('❌ Error type: ${error.runtimeType}');
+              debugPrint('❌ Stack trace: ${StackTrace.current}');
+              isLoading.value = false;
+            },
+          );
+    } catch (e) {
+      debugPrint('❌ Exception in _listenToChatRooms: $e');
+      isLoading.value = false;
+    }
   }
 
   /// Listen for new admin messages in a chat room and update chat_rooms collection
@@ -257,6 +279,8 @@ class ChatController extends GetxController {
         'lastMessageSenderRole': 'user',
         'lastMessageTime': FieldValue.serverTimestamp(),
       });
+
+      debugPrint('✅ Message sent and lastMessage updated: "${text.trim()}"');
 
       return true;
     } catch (e) {
@@ -477,5 +501,66 @@ class ChatController extends GetxController {
   /// Get total unread message count
   int get totalUnreadCount {
     return chatRooms.fold(0, (sum, room) => sum + room.unreadCount);
+  }
+
+  /// Populate missing lastMessage fields from actual messages
+  Future<void> populateMissingLastMessages() async {
+    try {
+      debugPrint('🔄 Checking for chat rooms with missing lastMessages...');
+
+      for (var chatRoom in chatRooms) {
+        // If lastMessage is empty, try to get it from the actual messages
+        if (chatRoom.lastMessage.isEmpty) {
+          debugPrint(
+            '📝 Chat room ${chatRoom.id} has empty lastMessage, fetching...',
+          );
+
+          // Get the most recent message
+          final messagesSnapshot = await _db
+              .collection('chat_rooms')
+              .doc(chatRoom.id)
+              .collection('messages')
+              .orderBy('createdAt', descending: true)
+              .limit(1)
+              .get();
+
+          if (messagesSnapshot.docs.isNotEmpty) {
+            final lastMsg = messagesSnapshot.docs.first;
+            final msgData = lastMsg.data();
+            final messageText = msgData['text'] ?? '';
+            final senderRole = msgData['senderRole'] ?? 'user';
+
+            if (messageText.isNotEmpty) {
+              // Update the chat room document with this message
+              await _db.collection('chat_rooms').doc(chatRoom.id).update({
+                'lastMessage': messageText,
+                'lastMessageSenderId': msgData['senderId'] ?? '',
+                'lastMessageSenderRole': senderRole,
+                'lastMessageTime':
+                    msgData['createdAt'] ?? FieldValue.serverTimestamp(),
+              });
+
+              debugPrint(
+                '✅ Updated chat room ${chatRoom.id} lastMessage: "$messageText"',
+              );
+            }
+          } else {
+            // No messages yet, set default
+            await _db.collection('chat_rooms').doc(chatRoom.id).update({
+              'lastMessage': 'Chat started',
+            });
+            debugPrint('ℹ️ Chat room ${chatRoom.id} has no messages yet');
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('❌ Error populating missing lastMessages: $e');
+    }
+  }
+
+  /// Refresh chat rooms - useful for manual refresh
+  void refreshChatRooms() {
+    debugPrint('🔄 Manual refresh requested');
+    _listenToChatRooms();
   }
 }

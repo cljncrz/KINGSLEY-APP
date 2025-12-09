@@ -17,6 +17,9 @@ class DamageReportController extends GetxController {
   // Track which reports have been notified to avoid duplicate notifications
   final Set<String> _notifiedReports = {};
 
+  // Flag to track if we've loaded existing reports on app startup
+  bool _initialLoadComplete = false;
+
   @override
   void onInit() {
     super.onInit();
@@ -33,14 +36,28 @@ class DamageReportController extends GetxController {
         .where('userId', isEqualTo: user.uid)
         .snapshots()
         .listen((snapshot) {
+          // On first load, just mark all existing reports as "seen" to avoid duplicate notifications
+          if (!_initialLoadComplete) {
+            for (final doc in snapshot.docs) {
+              _notifiedReports.add(doc.id);
+            }
+            _initialLoadComplete = true;
+            debugPrint(
+              '✅ Initial damage reports loaded: ${_notifiedReports.length} reports marked as seen',
+            );
+            return;
+          }
+
+          // After initial load, only notify on new admin responses
           for (final doc in snapshot.docs) {
             final reportId = doc.id;
             final data = doc.data();
 
             // Check if admin response exists and we haven't already notified
-            if (data['adminResponse'] != null &&
-                (data['adminResponse'] as String).isNotEmpty &&
-                data['adminResponse'] != 'Pending review' &&
+            final adminResponse = data['adminResponse'] as String?;
+            if (adminResponse != null &&
+                adminResponse.isNotEmpty &&
+                adminResponse != 'Pending review' &&
                 !_notifiedReports.contains(reportId)) {
               // Mark as notified
               _notifiedReports.add(reportId);
@@ -48,7 +65,7 @@ class DamageReportController extends GetxController {
               // Send notification
               _notifyAdminReply(
                 reportId: reportId,
-                adminResponse: data['adminResponse'] as String,
+                adminResponse: adminResponse,
               );
             }
           }

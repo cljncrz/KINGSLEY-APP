@@ -1,5 +1,6 @@
 import 'package:capstone/utils/app_textstyles.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:capstone/view/home/chat_detail_screen.dart';
@@ -16,7 +17,22 @@ class AiChatbotScreen extends StatefulWidget {
 }
 
 class _AiChatbotScreenState extends State<AiChatbotScreen> {
-  final ChatController _chatController = Get.put(ChatController());
+  late final ChatController _chatController;
+
+  @override
+  void initState() {
+    super.initState();
+    // Use find if exists, otherwise put a new instance
+    _chatController = Get.isRegistered<ChatController>()
+        ? Get.find<ChatController>()
+        : Get.put(ChatController());
+
+    // Populate missing lastMessages after a short delay
+    Future.delayed(const Duration(milliseconds: 500), () {
+      debugPrint('📋 Populating missing lastMessages');
+      _chatController.populateMissingLastMessages();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -151,102 +167,115 @@ class _AiChatbotScreenState extends State<AiChatbotScreen> {
         );
       }
 
-      return ListView.builder(
-        itemCount: chatRooms.length,
-        itemBuilder: (context, index) {
-          final chatRoom = chatRooms[index];
-          final hasUnread = chatRoom.hasUnreadMessages;
-          final isFromAdmin = chatRoom.isLastMessageFromAdmin;
+      return RefreshIndicator(
+        onRefresh: () async {
+          _chatController.refreshChatRooms();
+          await Future.delayed(const Duration(seconds: 1));
+        },
+        child: ListView.builder(
+          itemCount: chatRooms.length,
+          itemBuilder: (context, index) {
+            final chatRoom = chatRooms[index];
+            final hasUnread = chatRoom.hasUnreadMessages;
+            final isFromAdmin = chatRoom.isLastMessageFromAdmin;
 
-          // Format time
-          final now = DateTime.now();
-          final messageDate = chatRoom.lastMessageTime;
-          String timeStr;
+            // Format time
+            final now = DateTime.now();
+            final messageDate = chatRoom.lastMessageTime;
+            String timeStr;
 
-          if (now.difference(messageDate).inDays == 0) {
-            timeStr = DateFormat('h:mm a').format(messageDate);
-          } else if (now.difference(messageDate).inDays == 1) {
-            timeStr = 'Yesterday';
-          } else if (now.difference(messageDate).inDays < 7) {
-            timeStr = DateFormat('EEEE').format(messageDate);
-          } else {
-            timeStr = DateFormat('MMM dd').format(messageDate);
-          }
+            if (now.difference(messageDate).inDays == 0) {
+              timeStr = DateFormat('h:mm a').format(messageDate);
+            } else if (now.difference(messageDate).inDays == 1) {
+              timeStr = 'Yesterday';
+            } else if (now.difference(messageDate).inDays < 7) {
+              timeStr = DateFormat('EEEE').format(messageDate);
+            } else {
+              timeStr = DateFormat('MMM dd').format(messageDate);
+            }
 
-          return ListTile(
-            tileColor: hasUnread
-                ? Theme.of(context).primaryColor.withOpacity(0.1)
-                : null,
-            leading: CircleAvatar(
-              backgroundColor: Theme.of(context).primaryColor,
-              child: Icon(
-                isFromAdmin ? Icons.support_agent : Icons.person,
-                color: Colors.white,
-              ),
-            ),
-            title: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    isFromAdmin ? 'Kingsley Carwash' : 'You',
-                    style:
-                        AppTextStyle.withColor(
-                          AppTextStyle.h3,
-                          Theme.of(context).textTheme.bodyLarge!.color!,
-                        ).copyWith(
-                          fontWeight: hasUnread
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                        ),
-                  ),
+            return ListTile(
+              tileColor: hasUnread
+                  ? Theme.of(context).primaryColor.withOpacity(0.1)
+                  : null,
+              leading: CircleAvatar(
+                backgroundColor: Theme.of(context).primaryColor,
+                child: Icon(
+                  isFromAdmin ? Icons.support_agent : Icons.person,
+                  color: Colors.white,
                 ),
-                if (hasUnread)
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).primaryColor,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
+              ),
+              title: Row(
+                children: [
+                  Expanded(
                     child: Text(
-                      '${chatRoom.unreadCount}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+                      isFromAdmin ? 'Kingsley Carwash' : 'You',
+                      style:
+                          AppTextStyle.withColor(
+                            AppTextStyle.h3,
+                            Theme.of(context).textTheme.bodyLarge!.color!,
+                          ).copyWith(
+                            fontWeight: hasUnread
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
+                    ),
+                  ),
+                  if (hasUnread)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).primaryColor,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        '${chatRoom.unreadCount}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
-                  ),
-              ],
-            ),
-            subtitle: Text(
-              chatRoom.lastMessage,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style:
-                  AppTextStyle.withColor(
-                    AppTextStyle.bodySmall,
-                    isDark ? Colors.grey[400]! : Colors.grey[600]!,
-                  ).copyWith(
-                    fontWeight: hasUnread ? FontWeight.w600 : FontWeight.normal,
-                  ),
-            ),
-            trailing: Text(
-              timeStr,
-              style: AppTextStyle.bodySmall.copyWith(
-                fontWeight: hasUnread ? FontWeight.bold : FontWeight.normal,
-                color: hasUnread
-                    ? Theme.of(context).primaryColor
-                    : (isDark ? Colors.grey[500] : Colors.grey[600]),
+                ],
               ),
-            ),
-            onTap: () {
-              Get.to(() => ChatDetailScreen(chatRoomId: chatRoom.id));
-            },
-          );
-        },
+              subtitle: Text(
+                chatRoom.lastMessage.isNotEmpty
+                    ? chatRoom.lastMessage
+                    : 'Start a conversation',
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style:
+                    AppTextStyle.withColor(
+                      AppTextStyle.bodySmall,
+                      isDark ? Colors.grey[400]! : Colors.grey[600]!,
+                    ).copyWith(
+                      fontWeight: hasUnread
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                      fontStyle: chatRoom.lastMessage.isEmpty
+                          ? FontStyle.italic
+                          : FontStyle.normal,
+                    ),
+              ),
+              trailing: Text(
+                timeStr,
+                style: AppTextStyle.bodySmall.copyWith(
+                  fontWeight: hasUnread ? FontWeight.bold : FontWeight.normal,
+                  color: hasUnread
+                      ? Theme.of(context).primaryColor
+                      : (isDark ? Colors.grey[500] : Colors.grey[600]),
+                ),
+              ),
+              onTap: () {
+                Get.to(() => ChatDetailScreen(chatRoomId: chatRoom.id));
+              },
+            );
+          },
+        ),
       );
     });
   }
