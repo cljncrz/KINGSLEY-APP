@@ -72,9 +72,9 @@ class _HomeScreenState extends State<HomeScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Hello, Welcome!',
+                              'Hello,Welcome!',
                               style: AppTextStyle.withColor(
-                                AppTextStyle.bodyMedium,
+                                AppTextStyle.bodySmall,
                                 isDark ? Colors.white : Colors.black,
                               ),
                               maxLines: 1,
