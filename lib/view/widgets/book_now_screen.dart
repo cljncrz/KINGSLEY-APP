@@ -6,6 +6,7 @@ import 'package:capstone/models/booking.dart';
 import 'package:capstone/view/booking_successful_screen.dart';
 import 'package:capstone/screens/signup/signup_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -29,12 +30,25 @@ class BookNowScreen extends StatefulWidget {
 class TimeSlot {
   final TimeOfDay start;
   final TimeOfDay end;
+  final bool available;
 
-  const TimeSlot({required this.start, required this.end});
+  const TimeSlot({
+    required this.start,
+    required this.end,
+    this.available = true,
+  });
 
   String format(BuildContext context) {
     final localizations = MaterialLocalizations.of(context);
     return '${localizations.formatTimeOfDay(start)} - ${localizations.formatTimeOfDay(end)}';
+  }
+
+  TimeSlot copyWith({TimeOfDay? start, TimeOfDay? end, bool? available}) {
+    return TimeSlot(
+      start: start ?? this.start,
+      end: end ?? this.end,
+      available: available ?? this.available,
+    );
   }
 }
 
@@ -49,10 +63,13 @@ class _BookNowScreenState extends State<BookNowScreen> {
   final BookingController bookingController = Get.find<BookingController>();
   late final Map<DateTime, List<TimeSlot>>
   _availableSlots; // Keep this for date/time selection
+  bool _isLoadingSlots = true;
+  String? _errorMessage;
+
   @override
   void initState() {
     super.initState();
-    _availableSlots = _getMockAvailableSlots();
+    _loadAvailableSlots();
   }
 
   @override
@@ -65,13 +82,145 @@ class _BookNowScreenState extends State<BookNowScreen> {
     super.dispose();
   }
 
-  // In a real app, this would be fetched from a backend (e.g., Firestore)
-  // where an admin would manage these available slots.
-  Map<DateTime, List<TimeSlot>> _getMockAvailableSlots() {
-    final now = DateTime.now();
-    // Normalize dates to midnight to avoid time-based comparison issues.
-    final today = DateTime(now.year, now.month, now.day);
-    const slots = [
+  // Fetch available slots from Firestore
+  Future<void> _loadAvailableSlots() async {
+    try {
+      setState(() {
+        _isLoadingSlots = true;
+        _errorMessage = null;
+      });
+
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+
+      final Map<DateTime, List<TimeSlot>> slots = {};
+
+      // Fetch data for the next 30 days
+      for (int i = 0; i < 30; i++) {
+        final date = DateTime(today.year, today.month, today.day + i);
+        final dateString = DateFormat('yyyy-MM-dd').format(date);
+
+        try {
+          final docSnapshot = await FirebaseFirestore.instance
+              .collection('timeslot_availability')
+              .doc(dateString)
+              .get();
+
+          if (docSnapshot.exists) {
+            final data = docSnapshot.data() as Map<String, dynamic>;
+            final slotsList = _parseTimeSlotsFromFirestore(data);
+            slots[date] = slotsList;
+          } else {
+            // If no data for this date, use default slots as available
+            slots[date] = _getDefaultTimeSlots();
+          }
+        } catch (e) {
+          debugPrint('Error fetching slots for $dateString: $e');
+          // Fallback to default slots if there's an error
+          slots[date] = _getDefaultTimeSlots();
+        }
+      }
+
+      setState(() {
+        _availableSlots = slots;
+        _isLoadingSlots = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingSlots = false;
+        _errorMessage = 'Failed to load available slots: $e';
+      });
+      debugPrint('Error loading slots: $e');
+    }
+  }
+
+  // Parse time slots from Firestore document
+  // Expected structure: { "slots": { "08:20-09:20": { "start": "08:20", "end": "09:20", "available": true }, ... } }
+  List<TimeSlot> _parseTimeSlotsFromFirestore(Map<String, dynamic> data) {
+    final List<TimeSlot> slotsList = [];
+
+    try {
+      final slotsData = data['slots'] as Map<String, dynamic>?;
+
+      if (slotsData != null) {
+        slotsData.forEach((key, slotInfo) {
+          if (slotInfo is Map<String, dynamic>) {
+            try {
+              final start = _parseTimeOfDay(slotInfo['start'] as String?);
+              final end = _parseTimeOfDay(slotInfo['end'] as String?);
+              final available = slotInfo['available'] as bool? ?? true;
+
+              if (start != null && end != null) {
+                slotsList.add(
+                  TimeSlot(start: start, end: end, available: available),
+                );
+              }
+            } catch (e) {
+              debugPrint('Error parsing slot $key: $e');
+            }
+          }
+        });
+      }
+
+      // Sort slots by start time
+      slotsList.sort((a, b) {
+        final aMinutes = a.start.hour * 60 + a.start.minute;
+        final bMinutes = b.start.hour * 60 + b.start.minute;
+        return aMinutes.compareTo(bMinutes);
+      });
+    } catch (e) {
+      debugPrint('Error parsing time slots: $e');
+    }
+
+    // If no slots found in Firestore, return default slots
+    return slotsList.isEmpty ? _getDefaultTimeSlots() : slotsList;
+  }
+
+  // Helper method to parse "HH:mm" format string to TimeOfDay
+  // Supports both 24-hour (08:20) and 12-hour with AM/PM (8:20 AM)
+  TimeOfDay? _parseTimeOfDay(String? timeString) {
+    if (timeString == null || timeString.isEmpty) return null;
+
+    try {
+      String cleanedTime = timeString.trim();
+
+      // Check if it's 12-hour format with AM/PM
+      if (cleanedTime.contains('AM') || cleanedTime.contains('PM')) {
+        final isPM = cleanedTime.contains('PM');
+        cleanedTime = cleanedTime.replaceAll(RegExp(r'[AP]M'), '').trim();
+
+        final parts = cleanedTime.split(':');
+        if (parts.length == 2) {
+          int hour = int.parse(parts[0].trim());
+          final minute = int.parse(parts[1].trim());
+
+          // Convert 12-hour to 24-hour format
+          if (isPM && hour != 12) {
+            hour += 12;
+          } else if (!isPM && hour == 12) {
+            hour = 0;
+          }
+
+          return TimeOfDay(hour: hour, minute: minute);
+        }
+      } else {
+        // 24-hour format (HH:mm)
+        final parts = cleanedTime.split(':');
+        if (parts.length == 2) {
+          final hour = int.parse(parts[0].trim());
+          final minute = int.parse(parts[1].trim());
+          return TimeOfDay(hour: hour, minute: minute);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error parsing time: $timeString - $e');
+    }
+    return null;
+  }
+
+  // Default time slots to use as fallback
+  List<TimeSlot> _getDefaultTimeSlots() {
+    return [
       TimeSlot(
         start: TimeOfDay(hour: 8, minute: 20),
         end: TimeOfDay(hour: 9, minute: 20),
@@ -121,18 +270,90 @@ class _BookNowScreenState extends State<BookNowScreen> {
         end: TimeOfDay(hour: 20, minute: 50),
       ),
     ];
-    // Generate available slots for 30 days instead of just 5 days
-    final Map<DateTime, List<TimeSlot>> availableSlots = {};
-    for (int i = 0; i < 30; i++) {
-      final date = DateTime(today.year, today.month, today.day + i);
-      availableSlots[date] = slots;
-    }
-    return availableSlots;
   }
 
+  @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final user = FirebaseAuth.instance.currentUser;
+
+    if (_isLoadingSlots) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            onPressed: () => Get.back(),
+            icon: Icon(
+              Icons.arrow_back_ios,
+              color: isDark ? Colors.white : Colors.black,
+            ),
+          ),
+          title: Text(
+            'Book Now',
+            style: AppTextStyle.withColor(
+              AppTextStyle.h3,
+              isDark ? Colors.white : Colors.black,
+            ),
+          ),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: Theme.of(context).primaryColor),
+              const SizedBox(height: 16),
+              Text(
+                'Loading available slots...',
+                style: AppTextStyle.bodyMedium,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_errorMessage != null) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            onPressed: () => Get.back(),
+            icon: Icon(
+              Icons.arrow_back_ios,
+              color: isDark ? Colors.white : Colors.black,
+            ),
+          ),
+          title: Text(
+            'Book Now',
+            style: AppTextStyle.withColor(
+              AppTextStyle.h3,
+              isDark ? Colors.white : Colors.black,
+            ),
+          ),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.error_outline, size: 64, color: Colors.red),
+              const SizedBox(height: 16),
+              Text(
+                _errorMessage!,
+                style: AppTextStyle.bodyMedium,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () {
+                  setState(() {
+                    _loadAvailableSlots();
+                  });
+                },
+                child: Text('Retry', style: AppTextStyle.buttonMedium),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -358,11 +579,33 @@ class _BookNowScreenState extends State<BookNowScreen> {
               itemCount: availableTimes.length,
               itemBuilder: (context, index) {
                 final timeSlot = availableTimes[index];
+                final isAvailable = timeSlot.available;
+
                 return ListTile(
-                  title: Text(timeSlot.format(context)),
-                  onTap: () {
-                    Navigator.of(context).pop(timeSlot);
-                  },
+                  title: Text(
+                    timeSlot.format(context),
+                    style: TextStyle(
+                      color: isAvailable
+                          ? Colors.black
+                          : Colors.grey[400], // Gray out unavailable slots
+                      decoration: isAvailable
+                          ? TextDecoration.none
+                          : TextDecoration.lineThrough, // Strike through
+                    ),
+                  ),
+                  trailing: isAvailable
+                      ? null
+                      : const Icon(
+                          Icons.close,
+                          color: Colors.red,
+                          size: 20,
+                        ), // Show X icon for unavailable
+                  enabled: isAvailable, // Disable interaction if not available
+                  onTap: isAvailable
+                      ? () {
+                          Navigator.of(context).pop(timeSlot);
+                        }
+                      : null, // Don't allow selection if unavailable
                 );
               },
             ),
