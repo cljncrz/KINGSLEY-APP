@@ -63,16 +63,22 @@ Future<void> main() async {
     // Activate Firebase App Check. This MUST be done before other Firebase services are used.
     try {
       await FirebaseAppCheck.instance.activate(
+        // For Android: Use PlayIntegrity in production, debug in development
         androidProvider: kDebugMode
             ? AndroidProvider.debug
             : AndroidProvider.playIntegrity,
+        // For iOS: Use AppAttest in production, debug in development
         appleProvider: kDebugMode
             ? AppleProvider.debug
             : AppleProvider.appAttest,
       );
       debugPrint('✅ Firebase App Check activated successfully.');
+      debugPrint(
+        '${kDebugMode ? '🔧 DEBUG MODE' : '🔒 PRODUCTION MODE'} - App Check active',
+      );
     } catch (e) {
       debugPrint('❌ Error activating Firebase App Check: $e');
+      // Continue even if App Check fails - don't block app startup
     }
 
     // Set the background messaging handler
@@ -125,7 +131,7 @@ class MyApp extends StatelessWidget {
       darkTheme: AppThemes.dark,
       themeMode: themeController.theme,
       defaultTransition: Transition.fade,
-      home: const SplashScreen(),
+      home: SplashScreen(),
     );
   }
 }

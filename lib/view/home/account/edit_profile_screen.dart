@@ -257,39 +257,55 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (_selectedImage != null) {
       try {
         debugPrint('Starting profile image upload for user: ${user.uid}');
-
         // Force-refresh the token to ensure it's valid before the upload.
-        // If this fails, we should not proceed with the upload.
         try {
           await user.reload();
           await user.getIdToken(true);
-          debugPrint('Auth token force-refreshed before upload.');
+          debugPrint('✅ Auth token refreshed before upload.');
         } catch (tokenError) {
           debugPrint(
-            'Critical Error: Failed to refresh auth token: $tokenError',
+            '❌ Critical Error: Failed to refresh auth token: $tokenError',
           );
           Get.snackbar(
             'Authentication Error',
             'Your session is invalid. Please log out and sign in again.',
           );
           setState(() => _isLoading = false);
-          return; // Stop the process if token refresh fails
+          return;
         }
 
-        // Force-refresh the App Check token to ensure it's valid before upload.
-        final appCheckToken = await FirebaseAppCheck.instance.getToken(true);
-        debugPrint(
-          'App Check token refreshed. Ready for upload: ${appCheckToken != null}',
-        );
+        // NOTE: Removed App Check token requirement - Firebase Storage rules
+        // are configured to allow authenticated users without App Check validation
 
         final ref = firebase_storage.FirebaseStorage.instance.ref(
           'users/${user.uid}/profile.jpg',
         );
         debugPrint('Upload path: ${ref.fullPath}');
 
-        await ref.putFile(_selectedImage!);
-        newImageUrl = await ref.getDownloadURL();
-        debugPrint('Profile image uploaded successfully: $newImageUrl');
+        // Upload file with better error handling
+        try {
+          final metadata = firebase_storage.SettableMetadata(
+            contentType: 'image/jpeg',
+            customMetadata: {
+              'uploadedBy': user.uid,
+              'uploadedAt': DateTime.now().toIso8601String(),
+            },
+          );
+
+          await ref.putFile(_selectedImage!, metadata);
+          newImageUrl = await ref.getDownloadURL();
+          debugPrint('✅ Profile image uploaded successfully: $newImageUrl');
+        } on firebase_storage.FirebaseException catch (e) {
+          debugPrint('❌ Storage Error: Code=${e.code}, Message=${e.message}');
+          debugPrint('Full exception: $e');
+
+          Get.snackbar(
+            'Upload Failed',
+            'Could not upload profile picture. (${e.code}: ${e.message})',
+          );
+          setState(() => _isLoading = false);
+          return; // Stop if image upload fails
+        }
       } on firebase_storage.FirebaseException catch (e) {
         debugPrint('Storage Error: Code=${e.code}, Message=${e.message}');
         debugPrint('Full exception: $e');

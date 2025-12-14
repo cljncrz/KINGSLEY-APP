@@ -134,13 +134,14 @@ class DamageReportController extends GetxController {
       }
 
       // Force-refresh App Check token before writing to Firestore
-      final appCheckToken = await FirebaseAppCheck.instance.getToken(true);
-      if (appCheckToken == null) {
-        throw FirebaseException(
-          plugin: 'app-check',
-          code: 'token-error',
-          message: 'Could not retrieve App Check token.',
+      try {
+        final appCheckToken = await FirebaseAppCheck.instance.getToken(true);
+        debugPrint('✅ App Check token obtained successfully');
+      } catch (appCheckError) {
+        debugPrint(
+          '⚠️ Warning: App Check token error (non-fatal): $appCheckError',
         );
+        // Continue anyway - not all Firebase rules require App Check
       }
 
       final reportData = {
@@ -202,26 +203,22 @@ class DamageReportController extends GetxController {
         final image = images[i];
         debugPrint('Uploading image ${i + 1}/${images.length}: ${image.name}');
 
-        // Refresh the token BEFORE each upload
+        // Refresh auth token BEFORE each upload
         final user = _auth.currentUser;
         if (user != null) {
           try {
             await user.reload();
-            await user.getIdToken(true); // Force refresh the token
-            debugPrint(
-              '✅ Auth token force-refreshed successfully before image upload.',
-            );
+            await user.getIdToken(true);
+            debugPrint('✅ Auth token refreshed before image ${i + 1} upload.');
           } catch (e) {
-            debugPrint(
-              '❌ Critical Error: Failed to refresh auth token before image upload: $e',
-            );
+            debugPrint('❌ Token refresh failed for image ${i + 1}: $e');
             Get.snackbar(
               "Authentication Error",
-              "Your session is invalid. Please log out and sign in again.",
+              "Session expired. Please log out and log in again.",
               backgroundColor: Colors.red,
               colorText: Colors.white,
             );
-            continue; // Skip this image if token refresh fails
+            continue;
           }
         }
 
@@ -234,7 +231,7 @@ class DamageReportController extends GetxController {
 
         final file = File(image.path);
         if (!await file.exists()) {
-          debugPrint('File does not exist: ${image.path}');
+          debugPrint('❌ File does not exist: ${image.path}');
           continue;
         }
 
